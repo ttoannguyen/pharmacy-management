@@ -27,6 +27,7 @@
     "perf:explain": "tsx scripts/performance/explain-catalog.ts",
     "perf:config": "node scripts/performance/config-check.mjs",
     "perf:browser": "node scripts/performance/browser-trace.mjs",
+    "perf:query-count": "node scripts/performance/api-query-count.mjs",
     "perf:db-telemetry": "node scripts/performance/db-telemetry.mjs",
     "db:migrate:empty-check": "node scripts/performance/migration-chain-check.mjs"
   },

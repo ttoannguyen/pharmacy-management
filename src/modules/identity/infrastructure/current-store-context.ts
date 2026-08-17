@@ -46,6 +46,10 @@ export const getCurrentStoreContext = cache(async () => {
   return resolveStoreContext(await getCurrentStoreContextInput());
 });
 
+export const getCurrentActor = cache(async () => {
+  return (await getCurrentStoreContextInput()).actor;
+});
+
 export const getCurrentWorkspaceState = cache(async () => {
   const input = await getCurrentStoreContextInput();
   let activeStore = null;

@@ -170,6 +170,12 @@ lỗi. Kết quả external được cache với source, retrievedAt và verific
 - Login rate limit lưu persistent trong PostgreSQL để không phụ thuộc một process.
 - Session revoke và expiry được kiểm tra ở server; browser không tự quyết định
   quyền truy cập.
+- Trusted request context đọc session, actor và các membership/store đang active
+  bằng một câu SQL tham số hóa trong identity infrastructure. Không dùng nested
+  relation read ở hot path này vì PostgreSQL driver adapter tách nó thành nhiều
+  statement; token thô vẫn chỉ được hash trước khi bind. `lastUsedAt` được touch
+  có throttle trong after-response hook và không làm chậm hoặc làm fail business
+  response.
 - Session/token không lưu trong localStorage.
 - Authorization được thực thi server-side.
 - Secret chỉ nằm trong environment/secret manager.

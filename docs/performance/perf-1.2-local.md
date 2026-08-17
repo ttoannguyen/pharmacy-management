@@ -1,6 +1,6 @@
 # PERF-1.2 local evidence
 
-Status: partial (`[~]`)
+Status: complete (`[x]`)
 
 ## Implementation
 
@@ -10,11 +10,17 @@ Status: partial (`[~]`)
 - Trusted context schedules the touch with Next `after()` so expiry/revocation
   remain synchronous but the write is outside the response path.
 
-## Verification
+## Database evidence
 
-- 41 tests pass, including throttle, failure and compare-and-set behavior.
-- Typecheck, lint and production build pass.
-- No schema or migration change.
+The same disposable PostgreSQL 16 profile measured the trusted auth path before
+and after the final caller migration. Auth changed from 2 to 1 SQL calls;
+catalog list changed 9 to 6, detail 11 to 8 and overview 6 to 3. All counts were
+stable across three samples and all responses were HTTP 200. See
+`perf-query-count-local.md` and its before/after JSON reports.
 
-Remaining gate: repeat the authenticated benchmark with query/write observation in
-the same region and prove that the deferred touch adds no critical-path latency.
+No runtime caller remains for the synchronous legacy `getCurrentUser` plus
+membership chain. Session expiry/revocation remain in the one synchronous
+trusted-context statement; only throttled `lastUsedAt` maintenance is deferred.
+
+No schema or migration changed. Deployed provider telemetry remains PERF-4.1 and
+does not reopen this completed local implementation task.

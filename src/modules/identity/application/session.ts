@@ -3,7 +3,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
 import type { PrismaClient } from "@/generated/prisma/client";
-import type { LocalUser } from "@/modules/identity/application/auth-context";
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const DEV_COOKIE_NAME = "pharmacy_session";
@@ -95,51 +94,4 @@ export async function revokeCurrentSession(db: AuthSessionDatabase) {
     maxAge: 0,
     path: "/",
   });
-}
-
-export async function getCurrentUser(db: Pick<PrismaClient, "authSession">): Promise<LocalUser | null> {
-  const token = await getSessionToken();
-
-  if (!token) {
-    return null;
-  }
-
-  const session = await db.authSession.findFirst({
-    where: {
-      tokenHash: hashSessionToken(token),
-      revokedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-    select: {
-      id: true,
-      lastUsedAt: true,
-      user: {
-        select: {
-          id: true,
-          email: true,
-          displayName: true,
-          isActive: true,
-          emailVerifiedAt: true,
-          systemRole: true,
-        },
-      },
-    },
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  const touchBefore = new Date(Date.now() - SESSION_TOUCH_INTERVAL_MS);
-  if (session.lastUsedAt < touchBefore) {
-    await db.authSession.updateMany({
-      where: {
-        id: session.id,
-        lastUsedAt: { lt: touchBefore },
-      },
-      data: { lastUsedAt: new Date() },
-    });
-  }
-
-  return session.user;
 }

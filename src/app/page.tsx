@@ -1,8 +1,7 @@
 import Link from "next/link";
 
 import { SystemRole } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/modules/identity/application/session";
+import { getCurrentActor } from "@/modules/identity/infrastructure/current-store-context";
 
 const modules = [
   { name: "Danh mục thuốc", detail: "Dữ liệu chung, dữ liệu nhà thuốc và barcode" },
@@ -14,7 +13,7 @@ const modules = [
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const currentUser = await getCurrentUser(prisma);
+  const currentUser = await getCurrentActor();
   const workspaceHref = currentUser?.systemRole === SystemRole.SYSTEM_ADMIN ? "/admin" : "/dashboard";
 
   return (

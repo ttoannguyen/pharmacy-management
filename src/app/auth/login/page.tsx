@@ -4,13 +4,12 @@ import { redirect } from "next/navigation";
 import { SystemRole } from "@/generated/prisma/client";
 
 import { LoginForm } from "@/app/auth/login/login-form";
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/modules/identity/application/session";
+import { getCurrentActor } from "@/modules/identity/infrastructure/current-store-context";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  const currentUser = await getCurrentUser(prisma);
+  const currentUser = await getCurrentActor();
   if (currentUser) redirect(currentUser.systemRole === SystemRole.SYSTEM_ADMIN ? "/admin" : "/dashboard");
 
   return (

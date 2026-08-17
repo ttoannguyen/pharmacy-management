@@ -712,3 +712,40 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve: direct entry must remain guarded by the server layout; workspace
   context is display/cache input only, never API authorization proof. Do not
   full-prefetch data-heavy operational routes or weaken post-commit invalidation.
+
+## 2026-08-17 — Single-statement trusted context and SQL-call evidence
+
+- Status: PERF-1.1 and PERF-1.2 are complete. PERF-2.1 and PERF-2.3 remain
+  partial because their historical pre-change implementations were not captured
+  under the exact current profile; no production SLO is inferred from local data.
+- Finding and decision: one nested Prisma operation was not one database
+  statement with the PostgreSQL driver adapter. Trusted context now uses one
+  parameterized identity-infrastructure query for valid session, active actor and
+  active membership/store rows; raw session tokens are hashed before binding.
+- Caller cleanup: home, login and `/api/auth/me` now use the shared trusted actor
+  loader. The synchronous legacy `getCurrentUser` implementation and unused
+  two-step `prisma-store-context` adapter were removed. Expiry/revocation stay on
+  the synchronous path; throttled `lastUsedAt` remains an after-response
+  best-effort update.
+- Evidence: guarded `npm run perf:query-count` accepts only local app/database
+  targets and an explicit disposable label. Same-profile SQL calls changed auth
+  `2 -> 1`, catalog list `9 -> 6`, list with total `10 -> 7`, detail `11 -> 8`
+  and overview `6 -> 3`; every count was stable in 3/3 samples and all 30
+  before/after requests returned HTTP 200.
+- Reports: `docs/performance/perf-query-count-local.md` and the paired before/
+  after JSON files. They contain command categories and aggregate counts only;
+  no SQL text, parameters, cookie, credential or database URL is persisted.
+- Verification: 56 tests in 16 files, typecheck, lint, Prisma validate,
+  production build, script syntax, JSON criteria/secret audit and diff check
+  passed. Five migrations applied from empty on PostgreSQL 16 during both
+  captures; the disposable app/database were removed afterward.
+- Changed areas: identity request-context adapter/callers, performance collector
+  and unit helpers, canonical performance plan/reports, architecture and this
+  handoff. No schema or migration changed.
+- Remaining: deployed same-region load plus provider CPU/connection/wait
+  telemetry (PERF-4.1), WebKit before public release, and genuinely comparable
+  historical evidence if PERF-2.1/2.3 are ever reclassified complete.
+- Preserve: do not equate a Prisma repository invocation with a database
+  round-trip; keep auth SQL parameterized and tenant authorization server-side.
+  Query evidence must never persist query text, tokens, parameters or production
+  payloads.

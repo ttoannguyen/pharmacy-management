@@ -66,11 +66,11 @@ lập nếu repository workflow có commit/PR.
 | --- | --- | --- | --- | --- |
 | PERF-0.1 | [~] | Request ID + Server-Timing | E1.2 hoặc làm song song | Helper, headers và route instrumentation đã có; membership phase đã tách; controlled before/after gate còn pending |
 | PERF-0.2 | [x] | Benchmark harness + synthetic load fixture | PERF-0.1 | Runner, synthetic fixture, cleanup và fixture report đã có; SLO chưa đạt nhưng evidence đầy đủ |
-| PERF-1.1 | [~] | Single-query trusted request context | PERF-0.2 | Code/tests đã chuyển; p95 target chưa đạt và cần controlled rerun |
-| PERF-1.2 | [~] | Session touch ngoài critical path + migrate callers | PERF-1.1 | Deferred best-effort touch và tests đã có; controlled latency/security rerun còn thiếu |
-| PERF-2.1 | [~] | Catalog exact search + bỏ count hot path | PERF-1.2 | Store list now uses `take + 1`/optional total; controlled p95 rerun still pending |
+| PERF-1.1 | [x] | Single-query trusted request context | PERF-0.2 | One parameterized SQL statement verified by same-profile pg_stat_statements before/after |
+| PERF-1.2 | [x] | Session touch ngoài critical path + migrate callers | PERF-1.1 | Deferred touch, caller cleanup, security tests and controlled query-count/p95 evidence complete |
+| PERF-2.1 | [~] | Catalog exact search + bỏ count hot path | PERF-1.2 | Current SQL contract proves optional total adds one call; historical pre-change profile is unavailable |
 | PERF-2.2 | [~] | Free-text query plan + index migration nếu cần | PERF-2.1 | Exact equality + fixture EXPLAIN đã có; index revisit chỉ còn khi dataset lớn hơn |
-| PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | One aggregate + recent-products query implemented; controlled p95 gate pending |
+| PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | Current budget is 2 business/3 total SQL calls; historical pre-aggregate profile is unavailable |
 | PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Add/archive trace và concurrent invalidation đạt; update-SKU flow chưa thuộc MVP nên scope cuối chưa đóng |
 | PERF-3.2 | [x] | Provider/client boundary + route bundle gate | PERF-3.1 | Provider, bundle report và Chromium/Firefox Web Vitals CI evidence đã có; WebKit vẫn là release follow-up |
 | PERF-3.3 | [x] | Cache consistency foundation | PERF-3.1 implementation | Tenant namespace + focus/reconnect + mutation map có tests; 49 tests/typecheck/lint/build pass |
@@ -80,10 +80,11 @@ lập nếu repository workflow có commit/PR.
 
 ### Task đang được phép bắt đầu
 
-Không còn task `[ ]` nào có thể bắt đầu chỉ bằng môi trường local. PERF-3.4 đã
-đóng bằng control-vs-warm trace trên Chromium/Firefox. Các controlled rerun còn
-lại của PERF-0/1/2, deployed same-region gate và provider telemetry vẫn giữ trạng
-thái partial/exception; không được tự nâng thành complete bằng số đo khác profile.
+Không còn task `[ ]` nào có thể bắt đầu chỉ bằng môi trường local. PERF-1.1/1.2
+đã đóng bằng cùng profile PostgreSQL `pg_stat_statements`; PERF-3.4 đã đóng bằng
+control-vs-warm trace trên Chromium/Firefox. Historical baseline còn thiếu của
+PERF-0/2, deployed same-region gate và provider telemetry vẫn giữ trạng thái
+partial/exception; không được tự nâng thành complete bằng số đo khác profile.
 WebKit/Safari là follow-up trước public release theo quyết định MVP hiện tại.
 
 ---
@@ -300,14 +301,16 @@ trước khi chạy trên database không phải local.
 - [x] Request-local memoization dùng cùng loader cho layout, RSC và API.
 - [x] Chuyển catalog, dashboard và stores callers khỏi chuỗi
   `getCurrentUser` + `getActiveMemberships`.
-- [x] Đo trước/sau bằng PERF-0.2; report after được lưu, nhưng target p95 chưa đạt.
+- [x] Đo trước/sau ở tầng database; same-region disposable p95 đạt 20,9 ms và
+  trusted context giảm từ 4 xuống 1 SQL statement (auth endpoint tổng 2 xuống 1).
 
 Implementation note: `src/modules/identity/infrastructure/prisma-trusted-request-context.ts`
-selects the valid session, active user and active memberships/store summary in one
-Prisma operation. Session touch remains synchronous in the legacy `getCurrentUser`
-path and is intentionally deferred to PERF-1.2. The controlled fixture after-run
-did not prove a latency reduction, so this task remains `[~]` rather than claiming
-the <=200ms gate.
+selects the valid session, actor and active memberships/store summary in one
+parameterized PostgreSQL statement. The first controlled capture proved that the
+former nested Prisma select was one repository call but four SQL statements;
+the corrected adapter is one statement. On the same disposable profile, auth
+changed `2 -> 1` total SQL calls and p95 was 20.9 ms. See
+`docs/performance/perf-query-count-local.md`.
 
 Expected touch points: identity application/infrastructure, dashboard layout,
 catalog routes/read models và tenant/security tests. Không đổi cookie contract.
@@ -320,17 +323,19 @@ catalog routes/read models và tenant/security tests. Không đổi cookie contr
 - [x] Test touch interval, failure behavior và concurrent touch.
 - [x] Rà toàn bộ `getCurrentUser`, `getActiveMemberships` và
   `resolveCurrentStoreContext` callers bằng `rg`; không để legacy hot path sót lại.
-- [~] So sánh query count và p95 sau migration caller; local same-region report đã
-  có p95 sau migration, nhưng chưa có query-count instrumentation và baseline
-  cùng profile trước migration.
+- [x] So sánh query count và p95 sau migration caller; cùng profile đo được auth
+  `2 -> 1`, catalog list `9 -> 6`, detail `11 -> 8` và overview `6 -> 3`, không
+  có HTTP error.
 
 Implementation note: trusted context schedules `touchSessionBestEffort` through
 Next's `after()` hook. The update is guarded by the previously-read timestamp so
 concurrent requests do not continually write; errors are logged as a safe event
-and never reject the business response. Keep `[~]` until a controlled benchmark
-and session security regression run confirms no critical-path write latency.
+and never reject the business response. Legacy synchronous context callers and
+the unused two-step store-context adapter have been removed. Controlled
+statement-count evidence plus auth/session regression tests close this task;
+deployed provider evidence remains PERF-4.1, not a reason to reopen PERF-1.2.
 
-### Vấn đề hiện tại
+### Vấn đề baseline đã xử lý
 
 Request tenant-scoped đang đi theo chuỗi:
 
@@ -344,10 +349,10 @@ cookie/hash
 Hai query đầu phụ thuộc tuần tự, tạo latency floor lớn khi database remote.
 `React.cache` chỉ deduplicate trong cùng server render; không gộp hai round-trip.
 
-### Thay đổi đề xuất
+### Thay đổi đã áp dụng
 
-- Tạo một identity repository/read model đọc bằng session token hash và select:
-  active user + active memberships + store summary trong **một Prisma query**.
+- Identity repository/read model đọc bằng session token hash và select actor +
+  active memberships + store summary trong **một parameterized SQL statement**.
 - Chọn active store từ httpOnly preference cookie trong memory, sau khi membership
   result đã được server xác minh.
 - Dùng cùng request-context loader cho layout, Server Component và route handler;
@@ -363,7 +368,8 @@ Hai query đầu phụ thuộc tuần tự, tạo latency floor lớn khi databa
 - Inactive user/membership/store bị từ chối.
 - Selected store không thuộc membership bị từ chối.
 - Multi-store selection vẫn đúng.
-- Test spy chứng minh request context chỉ gọi một repository method.
+- Test spy và `pg_stat_statements` chứng minh request context chỉ gọi một
+  repository method và phát sinh đúng một database statement.
 - Không cache nhầm actor/store giữa hai request.
 
 ### Exit gate
@@ -384,8 +390,10 @@ Hai query đầu phụ thuộc tuần tự, tạo latency floor lớn khi databa
   khi total chưa được yêu cầu.
 - [x] DTO/API/TanStack types cùng thay đổi trong một commit.
 - [x] Tests cho exact match, hasNextPage, last page và tenant isolation.
-- [~] Benchmark fixture trước/sau; payload size đã được ghi trong benchmark JSON,
-  nhưng query-count before/after cần instrumentation DB riêng.
+- [~] Benchmark fixture trước/sau; current instrumentation proves interactive
+  list uses 6 total SQL calls and `includeTotal=true` uses 7 with unchanged
+  endpoint payload contract. A historical pre-PERF-2.1 run on the exact profile
+  is unavailable, so this criterion remains partial.
 
 Implementation note: `GET /api/catalog/products` no longer runs `COUNT(*)` by
 default. Clients may explicitly request `includeTotal=true` for a reporting UX;
@@ -412,9 +420,10 @@ fixture-only EXPLAIN and provider capability decision exist.
 - [x] Recent products là query thứ hai tối đa.
 - [x] Giữ repository/application boundary; UI không import Prisma trực tiếp.
 - [x] Test mọi predicate có `storeId` và inactive records bị loại.
-- [~] So sánh query count, p95 và returned values với implementation cũ; values
-  và current p95 có correctness tests/evidence, còn baseline query-count cũ chưa
-  được capture cùng fixture.
+- [~] So sánh query count, p95 và returned values với implementation cũ; current
+  implementation is verified at 2 business reads/3 total SQL calls and values
+  have correctness tests. The historical pre-aggregate query-count profile is
+  unavailable, so this criterion remains partial.
 
 Implementation note: the aggregate uses parameterized `Prisma.sql` and explicit
 store predicates for products, SKUs and barcodes. It intentionally does not read
@@ -665,6 +674,9 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 
 - Request ID/Server-Timing, trusted context, session-touch policy và catalog
   read-path optimizations đã có implementation/tests.
+- Trusted context đã được kiểm chứng ở tầng PostgreSQL statement, không chỉ bằng
+  repository mock: auth `2 -> 1`, catalog list `9 -> 6`, detail `11 -> 8`,
+  overview `6 -> 3` trên cùng disposable profile.
 - Benchmark + synthetic fixture có guard, cleanup và report JSON không chứa secret.
 - Same-region disposable local gate đạt SLO trên fixture 1.000/5.000/5.000;
   Chromium và Firefox browser traces đạt MVP gate.
@@ -683,8 +695,10 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 
 ### Cần external environment trước khi đóng hoàn toàn
 
-- Controlled load trên deployed topology cùng region, provider
-  CPU/connection/wait/slow-query telemetry và before/after query-count baseline.
+- Controlled load trên deployed topology cùng region và provider
+  CPU/connection/wait/slow-query telemetry. Historical pre-change query-count
+  còn thiếu riêng cho catalog count/dashboard aggregate; current hot-path
+  contracts đã có ở `docs/performance/perf-query-count-local.md`.
 - Các gate này không được suy luận từ local Docker hoặc remote-pooler sample; cần
   staging/provider access và owner project maintainer trước E2 inventory.
 

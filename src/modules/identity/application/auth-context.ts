@@ -10,11 +10,11 @@ export type LocalUser = Pick<
 >;
 
 export interface CurrentUserReader {
-  getCurrentUser(): Promise<LocalUser | null>;
+  readCurrentUser(): Promise<LocalUser | null>;
 }
 
 export async function requireLocalUser(reader: CurrentUserReader): Promise<LocalUser> {
-  const user = await reader.getCurrentUser();
+  const user = await reader.readCurrentUser();
 
   if (!user || !user.isActive) {
     throw new UnauthorizedError();

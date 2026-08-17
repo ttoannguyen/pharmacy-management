@@ -15,5 +15,10 @@ Implemented:
 Verification: 42 tests, typecheck, lint, production build, Prisma validate and
 diff check pass.
 
-Remaining: run before/after fixture measurements with payload size and query-count
-evidence after the trusted-context changes settle; do not claim the <=400ms SLO yet.
+Current database evidence: interactive list is stable at 6 total SQL calls and
+the same-build `includeTotal=true` branch is stable at 7, proving the hot path
+avoids one count statement. See `perf-query-count-local.md`.
+
+Remaining: the exact historical pre-PERF-2.1 implementation was not captured on
+this profile. Keep the task partial rather than treating the optional-total
+counterfactual as historical evidence or claiming a production SLO.

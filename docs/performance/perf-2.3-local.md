@@ -15,5 +15,11 @@ Implemented:
 Verification: 43 tests, typecheck, lint, production build, Prisma validate and
 diff check pass.
 
-Remaining: controlled before/after query-count and p95 evidence; no SLO pass is
-claimed until the same-region environment is measured.
+Current database evidence: overview is stable at 3 total SQL calls: one trusted
+context statement plus the intended aggregate and recent-products reads. The
+same-profile trusted-context correction changed total calls from 6 to 3. See
+`perf-query-count-local.md`.
+
+Remaining: the historical pre-aggregate dashboard implementation was not
+captured on this profile. Keep the task partial and do not infer a deployed SLO
+from the small local fixture.

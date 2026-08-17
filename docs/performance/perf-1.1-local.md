@@ -1,18 +1,23 @@
 # PERF-1.1 local evidence
 
-Status: partial (`[~]`)
-Dataset: `PERF20260817`, 1,000 products, 5,000 SKUs and 5,000 local barcodes
-Profiles: 3 samples/profile, 1 warm-up, concurrency 1/5/20
-Reports: `perf-0.2-fixture.json` (before), `perf-1.1-after.json` (after)
+Status: complete (`[x]`)
+
+Historical remote dataset: `PERF20260817`, 1,000 products, 5,000 SKUs and 5,000
+local barcodes. Current statement-count fixture: deterministic demo seed with one
+product/SKU, 3 sequential samples after warm-up.
 
 ## Code evidence
 
 - `readTrustedRequestContext` queries session expiry/revocation, actor and active
-  memberships in one Prisma `authSession.findFirst` operation.
+  memberships in one parameterized PostgreSQL statement. The previous nested
+  Prisma operation was removed after database evidence showed it emitted four
+  statements through the driver adapter.
 - Catalog, dashboard and `/api/stores` use the trusted context loader.
 - Selected store remains an httpOnly server cookie preference and is validated
   against returned active memberships by `resolveStoreContext`.
-- Unit tests verify one repository call and null for invalid session results.
+- Unit tests verify one parameterized repository call, hashed token binding,
+  expiry/revocation and active membership/store predicates, invalid sessions and
+  an actor without memberships.
 
 ## Measurement
 
@@ -26,7 +31,19 @@ percentiles. Representative after p95 values were:
 | Catalog list | 1,922.9 ms | 1,622.0 ms | 4,200.4 ms |
 | Catalog detail | 719.8 ms | 1,470.7 ms | 3,844.6 ms |
 
-The target is not met and the run is not a clean causal before/after comparison:
-the remote pooler had high variance and the single-query change did not produce a
-proven reduction. Keep `[~]`, investigate pool/query plan and repeat in a same-region
-controlled environment before moving the performance gate.
+That historical remote-pooler run remains useful variance evidence but did not
+prove causality. A later same-profile disposable PostgreSQL 16 capture measured
+the actual SQL boundary before and after the correction:
+
+| Endpoint | Before calls | After calls | After p95 |
+| --- | ---: | ---: | ---: |
+| Auth me | 2 | 1 | 20.9 ms |
+| Catalog list | 9 | 6 | 28.7 ms |
+| Catalog detail | 11 | 8 | 41.5 ms |
+| Catalog overview | 6 | 3 | 36.4 ms |
+
+All counts were stable across three samples and every response was HTTP 200. The
+authenticated context is now one database statement and is below the local
+same-region 200 ms exit gate. See `perf-query-count-local.md` and its two JSON
+reports. This closes PERF-1.1 without treating local latency as a deployed
+production SLO.

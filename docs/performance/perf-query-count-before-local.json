@@ -1,0 +1,368 @@
+{
+  "evidenceProfile": "before-single-sql-trusted-context",
+  "generatedAt": "2026-08-17T16:11:42.366Z",
+  "environment": "local-disposable",
+  "build": "production",
+  "commit": "working-tree@f31c533",
+  "dataset": "deterministic demo seed (1 product, 1 active SKU)",
+  "runtimeRegion": "local-node-22",
+  "databaseRegion": "local-postgresql-16",
+  "baseUrl": "http://127.0.0.1:4200",
+  "databaseHost": "127.0.0.1",
+  "databasePort": "55438",
+  "samplesPerEndpoint": 3,
+  "results": [
+    {
+      "endpoint": "auth-me",
+      "path": "/api/auth/me",
+      "latency": {
+        "n": 3,
+        "statusCounts": {
+          "200": 3
+        },
+        "errorRate": 0,
+        "p50Ms": 20.7,
+        "p90Ms": 23.4,
+        "p95Ms": 23.4,
+        "maxMs": 23.4
+      },
+      "queryContract": {
+        "expectedSqlCalls": 1,
+        "sqlCallsPerSample": [
+          2,
+          2,
+          2
+        ],
+        "passed": false
+      },
+      "samples": [
+        {
+          "status": 200,
+          "latencyMs": 8.2,
+          "payloadBytes": 300,
+          "sqlCalls": 2,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 2,
+              "rows": 2
+            }
+          ],
+          "serverTiming": "auth;dur=2.7, serialize;dur=0.2"
+        },
+        {
+          "status": 200,
+          "latencyMs": 23.4,
+          "payloadBytes": 300,
+          "sqlCalls": 2,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 2,
+              "rows": 2
+            }
+          ],
+          "serverTiming": "auth;dur=5.8, serialize;dur=0.4"
+        },
+        {
+          "status": 200,
+          "latencyMs": 20.7,
+          "payloadBytes": 300,
+          "sqlCalls": 2,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 2,
+              "rows": 2
+            }
+          ],
+          "serverTiming": "auth;dur=5.9, serialize;dur=0.4"
+        }
+      ]
+    },
+    {
+      "endpoint": "catalog-list",
+      "path": "/api/catalog/products?q=paracetamol&page=1&pageSize=20",
+      "latency": {
+        "n": 3,
+        "statusCounts": {
+          "200": 3
+        },
+        "errorRate": 0,
+        "p50Ms": 36.7,
+        "p90Ms": 39.8,
+        "p95Ms": 39.8,
+        "maxMs": 39.8
+      },
+      "queryContract": {
+        "expectedSqlCalls": 2,
+        "sqlCallsPerSample": [
+          9,
+          9,
+          9
+        ],
+        "passed": false
+      },
+      "samples": [
+        {
+          "status": 200,
+          "latencyMs": 39.8,
+          "payloadBytes": 659,
+          "sqlCalls": 9,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 9,
+              "rows": 9
+            }
+          ],
+          "serverTiming": "auth;dur=13.5, membership;dur=0.0, repository;dur=13.8, serialize;dur=0.4"
+        },
+        {
+          "status": 200,
+          "latencyMs": 36.7,
+          "payloadBytes": 659,
+          "sqlCalls": 9,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 9,
+              "rows": 9
+            }
+          ],
+          "serverTiming": "auth;dur=12.7, membership;dur=0.0, repository;dur=14.5, serialize;dur=0.4"
+        },
+        {
+          "status": 200,
+          "latencyMs": 26.9,
+          "payloadBytes": 659,
+          "sqlCalls": 9,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 9,
+              "rows": 9
+            }
+          ],
+          "serverTiming": "auth;dur=9.5, membership;dur=0.0, repository;dur=9.8, serialize;dur=0.3"
+        }
+      ]
+    },
+    {
+      "endpoint": "catalog-list-with-total",
+      "path": "/api/catalog/products?q=paracetamol&page=1&pageSize=20&includeTotal=true",
+      "latency": {
+        "n": 3,
+        "statusCounts": {
+          "200": 3
+        },
+        "errorRate": 0,
+        "p50Ms": 28.5,
+        "p90Ms": 35.3,
+        "p95Ms": 35.3,
+        "maxMs": 35.3
+      },
+      "queryContract": {
+        "expectedSqlCalls": 3,
+        "sqlCallsPerSample": [
+          10,
+          10,
+          10
+        ],
+        "passed": false
+      },
+      "samples": [
+        {
+          "status": 200,
+          "latencyMs": 28.5,
+          "payloadBytes": 656,
+          "sqlCalls": 10,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 10,
+              "rows": 10
+            }
+          ],
+          "serverTiming": "auth;dur=9.9, membership;dur=0.0, repository;dur=11.1, serialize;dur=0.2"
+        },
+        {
+          "status": 200,
+          "latencyMs": 25.5,
+          "payloadBytes": 656,
+          "sqlCalls": 10,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 10,
+              "rows": 10
+            }
+          ],
+          "serverTiming": "auth;dur=8.8, membership;dur=0.1, repository;dur=9.2, serialize;dur=0.2"
+        },
+        {
+          "status": 200,
+          "latencyMs": 35.3,
+          "payloadBytes": 656,
+          "sqlCalls": 10,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 10,
+              "rows": 10
+            }
+          ],
+          "serverTiming": "auth;dur=10.7, membership;dur=0.0, repository;dur=15.0, serialize;dur=0.6"
+        }
+      ]
+    },
+    {
+      "endpoint": "catalog-detail",
+      "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+      "latency": {
+        "n": 3,
+        "statusCounts": {
+          "200": 3
+        },
+        "errorRate": 0,
+        "p50Ms": 21.1,
+        "p90Ms": 28.8,
+        "p95Ms": 28.8,
+        "maxMs": 28.8
+      },
+      "queryContract": {
+        "expectedSqlCalls": 2,
+        "sqlCallsPerSample": [
+          11,
+          11,
+          11
+        ],
+        "passed": false
+      },
+      "samples": [
+        {
+          "status": 200,
+          "latencyMs": 12.7,
+          "payloadBytes": 945,
+          "sqlCalls": 11,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 11,
+              "rows": 11
+            }
+          ],
+          "serverTiming": "auth;dur=4.4, membership;dur=0.0, repository;dur=3.4, serialize;dur=0.1"
+        },
+        {
+          "status": 200,
+          "latencyMs": 28.8,
+          "payloadBytes": 945,
+          "sqlCalls": 11,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 11,
+              "rows": 11
+            }
+          ],
+          "serverTiming": "auth;dur=9.5, membership;dur=0.0, repository;dur=9.9, serialize;dur=0.3"
+        },
+        {
+          "status": 200,
+          "latencyMs": 21.1,
+          "payloadBytes": 945,
+          "sqlCalls": 11,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 11,
+              "rows": 11
+            }
+          ],
+          "serverTiming": "auth;dur=8.3, membership;dur=0.0, repository;dur=5.0, serialize;dur=0.2"
+        }
+      ]
+    },
+    {
+      "endpoint": "catalog-overview",
+      "path": "/api/catalog/overview",
+      "latency": {
+        "n": 3,
+        "statusCounts": {
+          "200": 3
+        },
+        "errorRate": 0,
+        "p50Ms": 24.4,
+        "p90Ms": 26.7,
+        "p95Ms": 26.7,
+        "maxMs": 26.7
+      },
+      "queryContract": {
+        "expectedSqlCalls": 3,
+        "sqlCallsPerSample": [
+          6,
+          6,
+          6
+        ],
+        "passed": false
+      },
+      "samples": [
+        {
+          "status": 200,
+          "latencyMs": 23.8,
+          "payloadBytes": 336,
+          "sqlCalls": 6,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 6,
+              "rows": 6
+            }
+          ],
+          "serverTiming": "auth;dur=11.1, membership;dur=0.0, repository;dur=3.8, serialize;dur=0.3"
+        },
+        {
+          "status": 200,
+          "latencyMs": 26.7,
+          "payloadBytes": 336,
+          "sqlCalls": 6,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 6,
+              "rows": 6
+            }
+          ],
+          "serverTiming": "auth;dur=11.0, membership;dur=0.0, repository;dur=7.0, serialize;dur=0.3"
+        },
+        {
+          "status": 200,
+          "latencyMs": 24.4,
+          "payloadBytes": 336,
+          "sqlCalls": 6,
+          "commands": [
+            {
+              "command": "SELECT",
+              "calls": 6,
+              "rows": 6
+            }
+          ],
+          "serverTiming": "auth;dur=11.5, membership;dur=0.0, repository;dur=5.2, serialize;dur=0.3"
+        }
+      ]
+    }
+  ],
+  "criteria": {
+    "auth-meSqlCallContract": false,
+    "catalog-listSqlCallContract": false,
+    "catalog-list-with-totalSqlCallContract": false,
+    "catalog-detailSqlCallContract": false,
+    "catalog-overviewSqlCallContract": false
+  },
+  "limitations": [
+    "This is current-state after evidence, not a reconstructed historical before profile.",
+    "Query text and bound parameters are intentionally omitted from the report.",
+    "Counts require an otherwise idle disposable database because pg_stat_statements is database/user scoped."
+  ]
+}
