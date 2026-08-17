@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-08-17T09:09:03.196Z",
+  "environment": "local",
+  "baseUrl": "http://127.0.0.1:3300",
+  "runtimeRegion": "unknown-local",
+  "databaseRegion": "unknown-local",
+  "buildCommit": "working-tree",
+  "node": "v22.23.1",
+  "dataset": "PERF20260817: 1000 products/5000 SKUs/5000 barcodes",
+  "samplesPerProfile": 3,
+  "warmupPerProfile": 1,
+  "endpoints": [
+    {
+      "endpoint": "auth-me",
+      "concurrency": 1,
+      "n": 3,
+      "statusCounts": {
+        "200": 3
+      },
+      "errorRate": 0,
+      "p50": 282.6,
+      "p90": 295.9,
+      "p95": 295.9,
+      "max": 295.9,
+      "serverTimingSamples": [
+        "auth;dur=268.1, serialize;dur=0.6",
+        "auth;dur=268.8, serialize;dur=0.8",
+        "auth;dur=220.8, serialize;dur=0.7"
+      ]
+    },
+    {
+      "endpoint": "auth-me",
+      "concurrency": 5,
+      "n": 15,
+      "statusCounts": {
+        "200": 15
+      },
+      "errorRate": 0,
+      "p50": 272.8,
+      "p90": 283.3,
+      "p95": 285.3,
+      "max": 285.3,
+      "serverTimingSamples": [
+        "auth;dur=227.7, serialize;dur=0.2",
+        "auth;dur=226.7, serialize;dur=0.1",
+        "auth;dur=219.2, serialize;dur=0.2"
+      ]
+    },
+    {
+      "endpoint": "auth-me",
+      "concurrency": 20,
+      "n": 60,
+      "statusCounts": {
+        "200": 60
+      },
+      "errorRate": 0,
+      "p50": 527.7,
+      "p90": 705.6,
+      "p95": 783.9,
+      "max": 889.3,
+      "serverTimingSamples": [
+        "auth;dur=398.2, serialize;dur=0.2",
+        "auth;dur=398.0, serialize;dur=0.5",
+        "auth;dur=384.7, serialize;dur=0.2"
+      ]
+    },
+    {
+      "endpoint": "catalog-list",
+      "concurrency": 1,
+      "n": 3,
+      "statusCounts": {
+        "200": 3
+      },
+      "errorRate": 0,
+      "p50": 993.1,
+      "p90": 1237.8,
+      "p95": 1237.8,
+      "max": 1237.8,
+      "serverTimingSamples": [
+        "auth;dur=496.1, repository;dur=390.2, serialize;dur=0.3",
+        "auth;dur=562.8, repository;dur=418.8, serialize;dur=0.8",
+        "auth;dur=554.2, repository;dur=673.9, serialize;dur=0.2"
+      ]
+    },
+    {
+      "endpoint": "catalog-list",
+      "concurrency": 5,
+      "n": 15,
+      "statusCounts": {
+        "200": 15
+      },
+      "errorRate": 0,
+      "p50": 1069.8,
+      "p90": 1430.4,
+      "p95": 1622,
+      "max": 1622,
+      "serverTimingSamples": [
+        "auth;dur=582.1, repository;dur=640.9, serialize;dur=0.3",
+        "auth;dur=570.0, repository;dur=490.0, serialize;dur=0.3",
+        "auth;dur=928.8, repository;dur=666.4, serialize;dur=0.3"
+      ]
+    },
+    {
+      "endpoint": "catalog-list",
+      "concurrency": 20,
+      "n": 60,
+      "statusCounts": {
+        "200": 60
+      },
+      "errorRate": 0,
+      "p50": 3047.2,
+      "p90": 3344.1,
+      "p95": 3435.4,
+      "max": 4404.1,
+      "serverTimingSamples": [
+        "auth;dur=1064.6, repository;dur=1820.0, serialize;dur=0.2",
+        "auth;dur=1062.0, repository;dur=1973.9, serialize;dur=0.3",
+        "auth;dur=1045.8, repository;dur=1712.7, serialize;dur=0.3"
+      ]
+    },
+    {
+      "endpoint": "catalog-detail",
+      "concurrency": 1,
+      "n": 3,
+      "statusCounts": {
+        "200": 3
+      },
+      "errorRate": 0,
+      "p50": 936.3,
+      "p90": 938.1,
+      "p95": 938.1,
+      "max": 938.1,
+      "serverTimingSamples": [
+        "auth;dur=504.0, repository;dur=376.8, serialize;dur=0.3",
+        "auth;dur=509.7, repository;dur=419.6, serialize;dur=0.3",
+        "auth;dur=544.5, repository;dur=387.0, serialize;dur=0.3"
+      ]
+    },
+    {
+      "endpoint": "catalog-detail",
+      "concurrency": 5,
+      "n": 15,
+      "statusCounts": {
+        "200": 15
+      },
+      "errorRate": 0,
+      "p50": 998.2,
+      "p90": 1050.6,
+      "p95": 1059.4,
+      "max": 1059.4,
+      "serverTimingSamples": [
+        "auth;dur=497.3, repository;dur=479.1, serialize;dur=0.4",
+        "auth;dur=491.5, repository;dur=385.9, serialize;dur=0.3",
+        "auth;dur=501.7, repository;dur=476.3, serialize;dur=0.3"
+      ]
+    },
+    {
+      "endpoint": "catalog-detail",
+      "concurrency": 20,
+      "n": 60,
+      "statusCounts": {
+        "200": 60
+      },
+      "errorRate": 0,
+      "p50": 2681.3,
+      "p90": 3475.4,
+      "p95": 3594.1,
+      "max": 3770.1,
+      "serverTimingSamples": [
+        "auth;dur=980.2, repository;dur=1497.5, serialize;dur=0.3",
+        "auth;dur=1927.7, repository;dur=1602.1, serialize;dur=0.2",
+        "auth;dur=975.1, repository;dur=1876.4, serialize;dur=0.3"
+      ]
+    }
+  ]
+}

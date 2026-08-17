@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-08-17T10:06:22.125Z",
+  "environment": "local",
+  "baseUrl": "http://127.0.0.1:3900",
+  "browser": "chromium",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": {
+    "dashboard": {
+      "navigationMs": 273.4,
+      "domContentLoadedMs": 188.7,
+      "loadMs": 273.4,
+      "lcpMs": 236,
+      "cls": 0,
+      "inpMs": 16
+    },
+    "catalog": {
+      "navigationMs": 96.5,
+      "domContentLoadedMs": 77,
+      "loadMs": 96.5,
+      "lcpMs": 104,
+      "cls": 0,
+      "inpMs": null
+    }
+  },
+  "mutation": {
+    "route": "/dashboard/catalog/[id]",
+    "requestCountBefore": 0,
+    "requestCountAfter": 3,
+    "postMutationRequests": [
+      {
+        "path": "/_next/static/chunks/2yr-u5no7vx86.js",
+        "method": "GET"
+      },
+      {
+        "path": "/dashboard?_rsc=3HD-84ji3PWBkRSo",
+        "method": "GET"
+      },
+      {
+        "path": "/dashboard/catalog?_rsc=3HD-84ji3PWBkRSo",
+        "method": "GET"
+      },
+      {
+        "path": "/dashboard?_rsc=3LL3XFwCf83y0_U4",
+        "method": "GET"
+      },
+      {
+        "path": "/dashboard/catalog?_rsc=3LL3XFwCf83y0_U4",
+        "method": "GET"
+      },
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus",
+        "method": "POST"
+      },
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+        "method": "GET"
+      },
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/2f80b72d-0462-4dd8-baea-0e89ad7f74c4",
+        "method": "PATCH"
+      }
+    ],
+    "archiveTested": true
+  }
+}

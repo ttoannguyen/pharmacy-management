@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-08-17T09:32:16.737Z",
+  "buildCommit": "working-tree",
+  "runtime": "Next.js production build / Turbopack",
+  "routeBoundary": {
+    "rootMountsQueryProvider": false,
+    "dashboardMountsQueryProvider": true
+  },
+  "rootMain": {
+    "assetCount": 6,
+    "bytes": 552792,
+    "gzipBytes": 169817
+  },
+  "queryClientChunks": [
+    "04572br3rynhu.js",
+    "0v35recjgc6aj.js",
+    "1lc53ck4iascm.js",
+    "257wffx3rbbuc.js",
+    "2qmg1-b40x57u.js",
+    "3ytl9tv9n9572.js"
+  ],
+  "assets": [
+    {
+      "file": "static/chunks/310vm2bl3xxpt.js",
+      "bytes": 5364,
+      "gzipBytes": 1969
+    },
+    {
+      "file": "static/chunks/19mx3mg6lkumu.js",
+      "bytes": 28907,
+      "gzipBytes": 7591
+    },
+    {
+      "file": "static/chunks/3e4keds9ktjdu.js",
+      "bytes": 229156,
+      "gzipBytes": 71470
+    },
+    {
+      "file": "static/chunks/2axc3p_g0lskj.js",
+      "bytes": 165894,
+      "gzipBytes": 44985
+    },
+    {
+      "file": "static/chunks/turbopack-12frtberpzdxt.js",
+      "bytes": 10877,
+      "gzipBytes": 4282
+    },
+    {
+      "file": "static/chunks/0cz1d0mv5g_q7.js",
+      "bytes": 112594,
+      "gzipBytes": 39520
+    }
+  ],
+  "webVitals": {
+    "status": "not-measured",
+    "reason": "No browser trace/Playwright runner is configured in this repository."
+  }
+}

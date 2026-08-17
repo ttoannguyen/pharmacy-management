@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-08-17T10:08:24.882Z",
+  "environment": "local",
+  "databaseHost": "127.0.0.1",
+  "databasePort": "55436",
+  "database": {
+    "database": "pharmacy_perf_telemetry",
+    "numbackends": 1,
+    "xact_commit": "6",
+    "xact_rollback": "0",
+    "blks_read": "161",
+    "blks_hit": "2225",
+    "deadlocks": "0",
+    "temp_files": "0",
+    "temp_bytes": "0"
+  },
+  "activity": [],
+  "pgStatStatements": {
+    "enabled": false,
+    "slowQueries": []
+  },
+  "limitations": [
+    "PostgreSQL statistics expose connection/wait/cache/statement evidence, not host CPU utilization.",
+    "Query text is intentionally omitted to avoid storing sensitive SQL or parameters."
+  ]
+}

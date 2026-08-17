@@ -1,0 +1,97 @@
+name: quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pharmacy_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pharmacy_migration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_migration_test
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_migration_test
+      MIGRATION_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_migration_test
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      AUTH_PEPPER: ci-only-test-pepper-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate:empty-check
+      - run: npm test -- --run
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  browser-evidence:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pharmacy_browser_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pharmacy_browser_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_browser_test
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_browser_test
+      MIGRATION_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/pharmacy_browser_test
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      AUTH_PEPPER: ci-only-test-pepper-not-for-production
+      PERF_ENVIRONMENT: local
+      PERF_BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate:empty-check
+      - run: npm run db:seed
+      - run: npm run build
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+      - name: Start production server
+        run: npm run start -- -p 3000 > /tmp/pharmacy-next.log 2>&1 &
+      - name: Wait for production server
+        run: |
+          for i in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:3000/auth/login >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/pharmacy-next.log
+          exit 1
+      - name: Capture Chromium evidence
+        run: PERF_BROWSER=chromium PERF_OUTPUT=docs/performance/perf-3.2-browser-ci-chromium.json npm run perf:browser
+      - name: Capture Firefox evidence
+        run: PERF_BROWSER=firefox PERF_OUTPUT=docs/performance/perf-3.2-browser-ci-firefox.json npm run perf:browser
+      - uses: actions/upload-artifact@v4
+        with:
+          name: performance-browser-evidence
+          path: docs/performance/perf-3.2-browser-ci-*.json

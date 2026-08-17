@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  PHARMACIST
+  CLINICIAN
+  INVENTORY_STAFF
+  ACCOUNTANT
+  SYSTEM_ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum CatalogSource {
+  NATIONAL_DRUG_DATABASE
+  DRUG_ADMINISTRATION
+  SUPPLIER
+  STORE_SUBMISSION
+  OCR
+  MANUAL
+  SYNTHETIC_DEMO
+}
+
+enum CatalogSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+model User {
+  id             String      @id @default(uuid()) @db.Uuid
+  externalAuthId String?     @unique @map("external_auth_id")
+  email          String      @unique
+  displayName    String?     @map("display_name")
+  passwordHash   String?     @map("password_hash")
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  isActive       Boolean     @default(true) @map("is_active")
+  memberships    Membership[]
+  sessions       AuthSession[]
+  loginAttempts  AuthLoginAttempt[]
+  submissions    CatalogSubmission[] @relation("CatalogSubmissionAuthor")
+  reviews        CatalogSubmission[] @relation("CatalogSubmissionReviewer")
+  auditLogs      AuditLog[]
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+model AuthSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthLoginAttempt {
+  id           String    @id @default(uuid()) @db.Uuid
+  keyHash      String    @unique @map("key_hash")
+  failedCount  Int       @default(0) @map("failed_count")
+  windowStart  DateTime  @map("window_start") @db.Timestamptz(6)
+  lockedUntil  DateTime? @map("locked_until") @db.Timestamptz(6)
+  userId       String?   @map("user_id") @db.Uuid
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([lockedUntil])
+  @@map("auth_login_attempts")
+}
+
+model Store {
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique
+  name        String
+  timezone    String       @default("Asia/Bangkok")
+  isActive    Boolean      @default(true) @map("is_active")
+  memberships Membership[]
+  products    StoreProduct[]
+  skus        StoreSku[]
+  barcodes    StoreBarcode[]
+  submissions CatalogSubmission[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("stores")
+}
+
+model Membership {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  storeId   String         @map("store_id") @db.Uuid
+  role      MembershipRole
+  isActive  Boolean        @default(true) @map("is_active")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, storeId])
+  @@index([storeId, role])
+  @@map("memberships")
+}
+
+model Unit {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  products  StoreProduct[]
+  skus      StoreSku[]
+
+  @@map("units")
+}
+
+model Ingredient {
+  id             String                  @id @default(uuid()) @db.Uuid
+  normalizedName String                  @unique @map("normalized_name")
+  displayName    String                  @map("display_name")
+  concepts       DrugConceptIngredient[]
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("ingredients")
+}
+
+model DrugConcept {
+  id             String                  @id @default(uuid()) @db.Uuid
+  normalizedName String                  @map("normalized_name")
+  dosageForm     String                  @map("dosage_form")
+  route          String?
+  ingredients    DrugConceptIngredient[]
+  products       RegisteredProduct[]
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([normalizedName])
+  @@map("drug_concepts")
+}
+
+model DrugConceptIngredient {
+  conceptId     String      @map("concept_id") @db.Uuid
+  ingredientId  String      @map("ingredient_id") @db.Uuid
+  strengthValue Decimal?    @map("strength_value") @db.Decimal(18, 6)
+  strengthUnit  String?     @map("strength_unit")
+  concept       DrugConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient  @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@id([conceptId, ingredientId])
+  @@map("drug_concept_ingredients")
+}
+
+model Manufacturer {
+  id             String              @id @default(uuid()) @db.Uuid
+  normalizedName String              @map("normalized_name")
+  displayName    String              @map("display_name")
+  countryCode    String?             @map("country_code")
+  products       RegisteredProduct[]
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([normalizedName, countryCode])
+  @@map("manufacturers")
+}
+
+model RegisteredProduct {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  conceptId          String                     @map("concept_id") @db.Uuid
+  manufacturerId     String                     @map("manufacturer_id") @db.Uuid
+  officialId         String?                    @unique @map("official_id")
+  registrationNumber String?                    @unique @map("registration_number")
+  brandName          String                     @map("brand_name")
+  status             String
+  currentVersion     Int                        @default(1) @map("current_version")
+  source             CatalogSource
+  sourceReference    String?                    @map("source_reference")
+  verificationStatus VerificationStatus         @default(UNVERIFIED) @map("verification_status")
+  concept            DrugConcept                @relation(fields: [conceptId], references: [id], onDelete: Restrict)
+  manufacturer       Manufacturer               @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  versions           RegisteredProductVersion[]
+  packages           ProductPackage[]
+  storeProducts      StoreProduct[]
+  createdAt          DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([brandName])
+  @@index([conceptId, manufacturerId])
+  @@map("registered_products")
+}
+
+model RegisteredProductVersion {
+  id                  String            @id @default(uuid()) @db.Uuid
+  registeredProductId String            @map("registered_product_id") @db.Uuid
+  version             Int
+  data                 Json
+  source               CatalogSource
+  sourceReference      String?           @map("source_reference")
+  validFrom            DateTime           @map("valid_from") @db.Timestamptz(6)
+  validTo              DateTime?          @map("valid_to") @db.Timestamptz(6)
+  registeredProduct    RegisteredProduct  @relation(fields: [registeredProductId], references: [id], onDelete: Restrict)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([registeredProductId, version])
+  @@map("registered_product_versions")
+}
+
+model ProductPackage {
+  id                  String             @id @default(uuid()) @db.Uuid
+  registeredProductId String             @map("registered_product_id") @db.Uuid
+  description         String
+  packageQuantity     Decimal?           @map("package_quantity") @db.Decimal(18, 6)
+  packageUnit         String?            @map("package_unit")
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  registeredProduct   RegisteredProduct  @relation(fields: [registeredProductId], references: [id], onDelete: Restrict)
+  barcodes            GlobalBarcode[]
+  storeSkus           StoreSku[]
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([registeredProductId])
+  @@map("product_packages")
+}
+
+model GlobalBarcode {
+  id                  String             @id @default(uuid()) @db.Uuid
+  productPackageId    String             @map("product_package_id") @db.Uuid
+  barcode             String
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  validFrom           DateTime?          @map("valid_from") @db.Timestamptz(6)
+  validTo             DateTime?          @map("valid_to") @db.Timestamptz(6)
+  source              CatalogSource
+  sourceReference     String?            @map("source_reference")
+  productPackage      ProductPackage     @relation(fields: [productPackageId], references: [id], onDelete: Restrict)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([productPackageId, barcode])
+  @@index([barcode, verificationStatus])
+  @@map("global_barcodes")
+}
+
+model StoreProduct {
+  id                    String             @id @default(uuid()) @db.Uuid
+  storeId               String             @map("store_id") @db.Uuid
+  registeredProductId   String?            @map("registered_product_id") @db.Uuid
+  baseUnitId            String             @map("base_unit_id") @db.Uuid
+  displayName           String             @map("display_name")
+  shelfLocation         String?            @map("shelf_location")
+  minimumStockBase      Decimal            @default(0) @map("minimum_stock_base") @db.Decimal(18, 6)
+  basedOnGlobalVersion  Int?               @map("based_on_global_version")
+  overrides             Json?
+  isActive              Boolean            @default(true) @map("is_active")
+  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  registeredProduct     RegisteredProduct? @relation(fields: [registeredProductId], references: [id], onDelete: SetNull)
+  baseUnit              Unit               @relation(fields: [baseUnitId], references: [id], onDelete: Restrict)
+  skus                  StoreSku[] @relation("StoreSkuProduct")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt            DateTime?          @map("archived_at") @db.Timestamptz(6)
+
+  @@index([storeId, displayName])
+  @@index([storeId, registeredProductId])
+  @@unique([storeId, id])
+  @@map("store_products")
+}
+
+model StoreSku {
+  id                   String          @id @default(uuid()) @db.Uuid
+  storeId              String          @map("store_id") @db.Uuid
+  storeProductId       String          @map("store_product_id") @db.Uuid
+  productPackageId     String?         @map("product_package_id") @db.Uuid
+  unitId               String          @map("unit_id") @db.Uuid
+  code                 String
+  quantityInBaseUnit   Decimal         @map("quantity_in_base_unit") @db.Decimal(18, 6)
+  sellingPriceMinor    BigInt          @map("selling_price_minor")
+  isActive             Boolean         @default(true) @map("is_active")
+  store                Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  storeProduct         StoreProduct    @relation("StoreSkuProduct", fields: [storeId, storeProductId], references: [storeId, id], onDelete: Restrict)
+  productPackage       ProductPackage? @relation(fields: [productPackageId], references: [id], onDelete: SetNull)
+  unit                 Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  barcodes             StoreBarcode[] @relation("StoreBarcodeSku")
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt           DateTime?       @map("archived_at") @db.Timestamptz(6)
+
+  @@unique([storeId, code])
+  @@unique([storeId, id])
+  @@index([storeId, storeProductId])
+  @@map("store_skus")
+}
+
+model StoreBarcode {
+  id         String   @id @default(uuid()) @db.Uuid
+  storeId    String   @map("store_id") @db.Uuid
+  storeSkuId String   @map("store_sku_id") @db.Uuid
+  barcode    String
+  isInternal Boolean  @default(false) @map("is_internal")
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  storeSku   StoreSku @relation("StoreBarcodeSku", fields: [storeId, storeSkuId], references: [storeId, id], onDelete: Restrict)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([storeId, barcode])
+  @@index([storeId, storeSkuId])
+  @@map("store_barcodes")
+}
+
+model CatalogSubmission {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  storeId               String                  @map("store_id") @db.Uuid
+  submittedById         String                  @map("submitted_by_id") @db.Uuid
+  reviewedById          String?                 @map("reviewed_by_id") @db.Uuid
+  barcode               String?
+  proposedData          Json                    @map("proposed_data")
+  evidence              Json?
+  status                 CatalogSubmissionStatus @default(PENDING)
+  reviewNote            String?                 @map("review_note")
+  resolvedProductId     String?                 @map("resolved_product_id") @db.Uuid
+  resolvedPackageId     String?                 @map("resolved_package_id") @db.Uuid
+  store                  Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  submittedBy            User                    @relation("CatalogSubmissionAuthor", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy             User?                   @relation("CatalogSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewedAt             DateTime?               @map("reviewed_at") @db.Timestamptz(6)
+
+  @@index([storeId, status])
+  @@index([barcode])
+  @@map("catalog_submissions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  storeId     String?  @map("store_id") @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id")
+  reason      String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  store       Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([storeId, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}

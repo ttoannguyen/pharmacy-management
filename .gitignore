@@ -1,0 +1,28 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next
+/out
+
+# Prisma generated client
+/src/generated/prisma
+
+# testing
+/coverage
+/playwright-report
+/test-results
+
+# local environment and secrets
+.env
+.env.*
+!.env.example
+
+# logs and local tooling
+*.log
+.DS_Store
+*.tsbuildinfo
+/image.png
+
+# Vercel
+.vercel
