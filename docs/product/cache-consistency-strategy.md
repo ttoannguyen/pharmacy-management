@@ -46,7 +46,7 @@ complete receipt bị cấm vì server không thể bảo đảm concurrency/inv
 - Dashboard overview dùng API + `useQuery`, `staleTime = 30s`, polling 60 giây
   khi tab visible, skeleton/error/retry; server page không còn gọi repository
   overview trên mỗi return navigation.
-- Add/update/archive SKU, create/update product invalidate detail, list và
+- Add/update/archive SKU, create/update/archive product invalidate detail, list và
   overview theo đúng namespace; invalidations chạy song song. Browser trace trên
   Chromium/Firefox xác nhận mỗi SKU mutation chỉ refetch active detail một lần.
 - Sau shell interactive, idle warmup tối đa hai query (overview + catalog page 1),

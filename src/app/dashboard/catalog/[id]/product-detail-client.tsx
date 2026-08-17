@@ -5,8 +5,10 @@ import { useState } from "react";
 
 import {
   useAddStoreSku,
+  useArchiveStoreProduct,
   useArchiveStoreSku,
   useStoreProductDetail,
+  useUpdateStoreProduct,
   useUpdateStoreSku,
   type StoreProductDetail,
 } from "@/modules/catalog/client/catalog-query";
@@ -24,10 +26,12 @@ function StoreSkuLifecycleRow({
   productId,
   sku,
   baseUnitName,
+  canManage,
 }: {
   productId: string;
   sku: StoreSkuDetail;
   baseUnitName: string;
+  canManage: boolean;
 }) {
   const updateSku = useUpdateStoreSku(productId, sku.id);
   const archiveSku = useArchiveStoreSku(productId, sku.id);
@@ -82,19 +86,21 @@ function StoreSkuLifecycleRow({
         <div>
           <strong>{sku.code}</strong>
           <small>
-            {sku.unit.name} · {quantity.format(Number(sku.quantityInBaseUnit))} {baseUnitName.toLowerCase()}
+            {sku.unit.name} · {quantity.format(Number(sku.quantityInBaseUnit))} {baseUnitName.toLowerCase()} · conversion v{sku.currentConversionVersion}
           </small>
         </div>
         <span>{sku.barcodes[0] ?? "Chưa có barcode"}</span>
         <strong>{money.format(Number(sku.sellingPriceMinor))}</strong>
-        <div className="sku-row-actions">
-          <button className="text-link" type="button" onClick={openEdit}>
-            Sửa SKU {sku.code}
-          </button>
-          <button className="text-link text-danger" type="button" onClick={openArchive}>
-            Ngừng bán {sku.code}
-          </button>
-        </div>
+        {canManage ? (
+          <div className="sku-row-actions">
+            <button className="text-link" type="button" onClick={openEdit}>
+              Sửa SKU {sku.code}
+            </button>
+            <button className="text-link text-danger" type="button" onClick={openArchive}>
+              Ngừng bán {sku.code}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {mode === "edit" ? (
@@ -182,7 +188,15 @@ export function ProductDetailClient({
 }) {
   const product = useStoreProductDetail(productId, initialData);
   const addSku = useAddStoreSku(productId);
+  const updateProduct = useUpdateStoreProduct(productId);
+  const archiveProduct = useArchiveStoreProduct(productId);
   const [open, setOpen] = useState(false);
+  const [productMode, setProductMode] = useState<"edit" | "archive" | null>(null);
+  const [productName, setProductName] = useState(initialData.displayName);
+  const [shelfLocation, setShelfLocation] = useState(initialData.shelfLocation ?? "");
+  const [minimumStockBase, setMinimumStockBase] = useState(initialData.minimumStockBase);
+  const [productUpdateReason, setProductUpdateReason] = useState("");
+  const [productArchiveReason, setProductArchiveReason] = useState("");
   const [code, setCode] = useState("");
   const [barcode, setBarcode] = useState("");
   const [unitId, setUnitId] = useState(initialData.baseUnit.id);
@@ -191,6 +205,51 @@ export function ProductDetailClient({
 
   if (!product.data) return <div className="panel"><p>Đang tải chi tiết sản phẩm…</p></div>;
   const data = product.data;
+
+  function openProductEdit() {
+    setProductName(data.displayName);
+    setShelfLocation(data.shelfLocation ?? "");
+    setMinimumStockBase(data.minimumStockBase);
+    setProductUpdateReason("");
+    updateProduct.reset();
+    setProductMode("edit");
+  }
+
+  function openProductArchive() {
+    setProductArchiveReason("");
+    archiveProduct.reset();
+    setProductMode("archive");
+  }
+
+  async function submitProductUpdate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      await updateProduct.mutateAsync({
+        displayName: productName,
+        shelfLocation: shelfLocation.trim() || null,
+        minimumStockBase,
+        expectedUpdatedAt: data.updatedAt,
+        reason: productUpdateReason,
+      });
+      setProductMode(null);
+    } catch {
+      // Mutation error is rendered next to the form.
+    }
+  }
+
+  async function submitProductArchive(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      await archiveProduct.mutateAsync({
+        expectedUpdatedAt: data.updatedAt,
+        reason: productArchiveReason,
+      });
+      setOpen(false);
+      setProductMode(null);
+    } catch {
+      // Mutation error is rendered next to the form.
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -220,10 +279,56 @@ export function ProductDetailClient({
           <h1>{data.displayName}</h1>
           <p>Thông tin local và các quy cách bán của nhà thuốc.</p>
         </div>
-        <button className="button button-primary" type="button" onClick={() => setOpen((value) => !value)}>
-          ＋ Thêm SKU
-        </button>
+        {data.isActive ? (
+          <div className="product-detail-actions">
+            <button className="button" type="button" onClick={openProductEdit}>Sửa thông tin</button>
+            <button className="button text-danger" type="button" onClick={openProductArchive}>Ngừng kinh doanh</button>
+            <button className="button button-primary" type="button" onClick={() => setOpen((value) => !value)}>
+              ＋ Thêm SKU
+            </button>
+          </div>
+        ) : <span className="status-chip status-inactive">Đã archive</span>}
       </div>
+
+      {!data.isActive ? (
+        <div className="notice notice-warning">
+          Sản phẩm đã được archive. Các SKU và lịch sử được giữ lại nhưng không còn xuất hiện trong lookup mặc định.
+        </div>
+      ) : null}
+
+      {productMode === "edit" ? (
+        <form className="panel sku-form" onSubmit={submitProductUpdate}>
+          <div className="panel-heading">
+            <div><p className="eyebrow">Thông tin local</p><h2>Sửa sản phẩm</h2></div>
+            <button className="icon-button" type="button" onClick={() => setProductMode(null)}>×</button>
+          </div>
+          <div className="form-grid">
+            <label className="field"><span>Tên hiển thị <i>*</i></span><input autoFocus maxLength={240} required value={productName} onChange={(event) => setProductName(event.target.value)} /></label>
+            <label className="field"><span>Vị trí kệ</span><input maxLength={120} value={shelfLocation} onChange={(event) => setShelfLocation(event.target.value)} /></label>
+            <label className="field"><span>Tồn tối thiểu <i>*</i></span><input inputMode="decimal" min="0" required step="0.000001" type="number" value={minimumStockBase} onChange={(event) => setMinimumStockBase(event.target.value)} /></label>
+            <label className="field field-wide"><span>Lý do sửa <i>*</i></span><input maxLength={240} required value={productUpdateReason} onChange={(event) => setProductUpdateReason(event.target.value)} /></label>
+          </div>
+          {updateProduct.isError ? <div className="notice notice-error">{updateProduct.error.message}</div> : null}
+          <div className="form-actions">
+            <button className="button" type="button" onClick={() => setProductMode(null)}>Hủy</button>
+            <button className="button button-primary" disabled={updateProduct.isPending} type="submit">{updateProduct.isPending ? "Đang lưu…" : "Lưu thông tin"}</button>
+          </div>
+        </form>
+      ) : null}
+
+      {productMode === "archive" ? (
+        <form className="panel sku-form" onSubmit={submitProductArchive}>
+          <div className="notice notice-warning">
+            Sản phẩm sẽ biến mất khỏi lookup mặc định. Dữ liệu và SKU được giữ lại, không hard-delete.
+          </div>
+          <label className="field"><span>Lý do ngừng kinh doanh <i>*</i></span><input autoFocus maxLength={240} required value={productArchiveReason} onChange={(event) => setProductArchiveReason(event.target.value)} /></label>
+          {archiveProduct.isError ? <div className="notice notice-error">{archiveProduct.error.message}</div> : null}
+          <div className="form-actions">
+            <button className="button" type="button" onClick={() => setProductMode(null)}>Hủy</button>
+            <button className="button text-danger" disabled={archiveProduct.isPending} type="submit">{archiveProduct.isPending ? "Đang archive…" : "Xác nhận ngừng kinh doanh"}</button>
+          </div>
+        </form>
+      ) : null}
 
       <section className="detail-summary-grid">
         <article className="panel detail-summary">
@@ -263,6 +368,7 @@ export function ProductDetailClient({
             {data.skus.map((sku) => (
               <StoreSkuLifecycleRow
                 baseUnitName={data.baseUnit.name}
+                canManage={data.isActive}
                 key={sku.id}
                 productId={productId}
                 sku={sku}
@@ -272,7 +378,7 @@ export function ProductDetailClient({
         ) : <div className="empty-inline"><p>Chưa có SKU bán nào.</p></div>}
       </section>
 
-      {open ? (
+      {open && data.isActive ? (
         <form className="panel sku-form" onSubmit={submit}>
           <div className="panel-heading">
             <div><p className="eyebrow">Thêm quy cách</p><h2>SKU mới</h2></div>

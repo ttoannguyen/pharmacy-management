@@ -137,6 +137,7 @@ describe("catalog repository boundaries", () => {
       basedOnGlobalVersion: null,
       overrides: { displayName: "Local Demo" },
       isActive: true,
+      updatedAt: new Date("2026-08-17T12:00:00.000Z"),
       baseUnit: { id: "unit", code: "TABLET", name: "Viên" },
       skus: [],
       registeredProduct: null,
@@ -145,6 +146,11 @@ describe("catalog repository boundaries", () => {
     const result = await repository.findById("store-a", "product-a");
 
     expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { storeId: "store-a", id: "product-a" } }));
-    expect(result).toMatchObject({ storeId: "store-a", minimumStockBase: "10", overrides: { displayName: "Local Demo" } });
+    expect(result).toMatchObject({
+      storeId: "store-a",
+      minimumStockBase: "10",
+      updatedAt: "2026-08-17T12:00:00.000Z",
+      overrides: { displayName: "Local Demo" },
+    });
   });
 });

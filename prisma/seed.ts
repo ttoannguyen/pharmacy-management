@@ -32,6 +32,7 @@ const ids = {
   globalBarcode: "71000000-0000-4000-8000-000000000001",
   storeProduct: "80000000-0000-4000-8000-000000000001",
   storeSku: "90000000-0000-4000-8000-000000000001",
+  storeSkuConversionVersion: "90500000-0000-4000-8000-000000000001",
   storeBarcode: "91000000-0000-4000-8000-000000000001",
 } as const;
 
@@ -229,6 +230,27 @@ async function seedDemoCatalog() {
         code: "DEMO-PARA-500-BOX",
         quantityInBaseUnit: "100",
         sellingPriceMinor: 50_000n,
+      },
+    });
+
+    await tx.storeSkuConversionVersion.upsert({
+      where: {
+        storeId_storeSkuId_version: {
+          storeId: ids.store,
+          storeSkuId: ids.storeSku,
+          version: 1,
+        },
+      },
+      update: {},
+      create: {
+        id: ids.storeSkuConversionVersion,
+        storeId: ids.store,
+        storeSkuId: ids.storeSku,
+        version: 1,
+        quantityInBaseUnit: "100",
+        effectiveFrom: new Date("2026-08-17T00:00:00.000Z"),
+        reason: "Initial synthetic demo conversion",
+        actorId: ids.user,
       },
     });
 

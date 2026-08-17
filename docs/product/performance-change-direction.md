@@ -80,7 +80,9 @@ lập nếu repository workflow có commit/PR.
 
 ### Task đang được phép bắt đầu
 
-Không còn task `[ ]` nào có thể bắt đầu chỉ bằng môi trường local. PERF-1.1/1.2
+E1.2 catalog lifecycle đã hoàn tất, gồm product update/archive và lịch sử phiên
+bản quy đổi SKU. Không còn PERF task `[ ]` nào có thể bắt đầu chỉ bằng môi trường
+local. PERF-1.1/1.2
 đã đóng bằng cùng profile PostgreSQL `pg_stat_statements`; PERF-3.4 đã đóng bằng
 control-vs-warm trace trên Chromium/Firefox; PERF-2.2 đã đóng bằng current-source
 EXPLAIN trên fixture disposable 1.000/5.000/5.000. Historical baseline còn thiếu
@@ -92,8 +94,8 @@ WebKit/Safari là follow-up trước public release theo quyết định MVP hi�
 
 ## 1. Quyết định định hướng
 
-Sau khi hoàn tất phần còn lại của E1.2, tạm dừng mở rộng feature để thực hiện một
-**Performance Gate P0** trước E2 inventory. Lý do: request hiện tại đã có nhiều
+E1.2 đã hoàn tất và **Performance Gate P0** trong phạm vi local hiện có đã được
+thực hiện trước E2 inventory. Lý do: request hiện tại đã có nhiều
 database round-trip khi dữ liệu mới chỉ ở mức demo; nếu giữ cấu trúc này sang
 receipt, inventory và POS thì latency và connection pressure sẽ tăng nhanh hơn
 số tính năng.
@@ -180,8 +182,10 @@ E1.2 catalog lifecycle hoàn tất
   -> mỗi vertical slice sau đó có performance gate riêng
 ```
 
-PERF-0 có thể bắt đầu song song với phần UI còn lại của E1.2. Không bắt đầu E2
-migration cho đến khi PERF-1 và PERF-2 có before/after evidence.
+PERF-1 và PERF-2 đã có current-source/local evidence; phần historical baseline và
+deployed provider telemetry không thể tái tạo từ repository hiện tại nên vẫn là
+exception công khai. E2 ADR có thể bắt đầu, nhưng migration/implementation E2
+phải giữ performance gate riêng và không được coi local Docker là deployed proof.
 
 ---
 
@@ -493,8 +497,11 @@ queries. Store switching removes the tenant-sensitive `catalog` namespace before
 reload; query cache remains a UX optimization and never an authorization source.
 SKU update uses a tenant-authorized transaction, mandatory audit reason and
 `expectedUpdatedAt` conflict guard before the same three invalidations run in
-parallel. Evidence: `docs/performance/perf-3.1-browser-chromium.json` and
-`docs/performance/perf-3.1-browser-firefox.json`.
+parallel. Evidence: `docs/performance/perf-3.1-browser-chromium.json`,
+`docs/performance/perf-3.1-browser-firefox.json`,
+`docs/performance/e1.2-browser-chromium.json` and
+`docs/performance/e1.2-browser-firefox.json`. E1.2 additionally proves product
+update/archive and conversion-version advancement through the real UI.
 
 ### PERF-3.2 — Client boundary và bundle
 
@@ -671,12 +678,12 @@ by accident.
 
 ## 6. Thứ tự giao việc đề xuất
 
-1. Hoàn tất E1.2 price/conversion/product lifecycle đang dở.
-2. PERF-0 instrumentation + reproducible benchmark.
-3. PERF-1 single-query trusted context.
-4. PERF-2 catalog count/search/dashboard aggregate.
-5. Chạy Performance Gate P0 và ghi before/after report.
-6. Chỉ khi gate đạt hoặc có exception được ghi rõ mới bắt đầu E2 inventory ADR.
+1. `[x]` E1.2 price/conversion/product lifecycle.
+2. `[x]` PERF instrumentation và reproducible local benchmark cho current source.
+3. `[x]` PERF-1 single-query trusted context.
+4. `[~]` PERF-2 current contracts đạt; historical baseline không còn để tái tạo.
+5. `[~]` Performance Gate P0 local đạt; deployed/provider gate vẫn là exception.
+6. Tiếp theo: E2 inventory ADR, giữ external exception và thêm gate cho từng slice.
 
 Mỗi PERF task phải giao kèm evidence trước/sau, correctness tests và full
 verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ dựa vào TanStack cache.
@@ -696,6 +703,10 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 - Catalog add/update/archive SKU lifecycle đã được trace qua UI trên
   Chromium/Firefox; mỗi mutation chỉ refetch active detail đúng một lần và không
   tạo list/overview API waterfall.
+- Product update/archive đã có optimistic conflict guard, tenant/state checks,
+  reason bắt buộc và audit before/after. Quy đổi SKU có immutable version history;
+  PostgreSQL migration backfill và constraints đã được kiểm chứng trên database
+  disposable. Evidence tổng hợp: `docs/performance/e1.2-local.md`.
 - Benchmark + synthetic fixture có guard, cleanup và report JSON không chứa secret.
 - Same-region disposable local gate đạt SLO trên fixture 1.000/5.000/5.000;
   Chromium và Firefox browser traces đạt MVP gate.

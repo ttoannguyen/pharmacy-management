@@ -31,6 +31,9 @@ async function cleanup() {
   // Keep cleanup idempotent and outside the default 5s interactive transaction
   // timeout; a large synthetic namespace may take longer over a remote pooler.
   await prisma.storeBarcode.deleteMany({ where: { storeId, barcode: { startsWith: `${namespace}-BC-` } } });
+  await prisma.storeSkuConversionVersion.deleteMany({
+    where: { storeId, storeSku: { code: { startsWith: `${namespace}-SKU-` } } },
+  });
   await prisma.storeSku.deleteMany({ where: { storeId, code: { startsWith: `${namespace}-SKU-` } } });
   await prisma.storeProduct.deleteMany({ where: { storeId, displayName: { startsWith: `${namespace} PERF PRODUCT ` } } });
 }
@@ -61,11 +64,23 @@ async function load() {
     sellingPriceMinor: BigInt(1000 + skuIndex),
   })));
   await prisma.storeSku.createMany({ data: skus });
+  const effectiveFrom = new Date();
+  await prisma.storeSkuConversionVersion.createMany({
+    data: skus.map((sku) => ({
+      id: crypto.randomUUID(),
+      storeId,
+      storeSkuId: sku.id,
+      version: 1,
+      quantityInBaseUnit: sku.quantityInBaseUnit,
+      effectiveFrom,
+      reason: "Synthetic performance fixture conversion",
+    })),
+  });
   await prisma.storeBarcode.createMany({
     data: skus.map((sku) => ({ storeId, storeSkuId: sku.id, barcode: `${namespace}-BC-${sku.code.slice(namespace.length + 5)}` })),
   });
 
-  console.info(JSON.stringify({ namespace, storeId, products: products.length, skus: skus.length, barcodes: skus.length, action: "loaded" }));
+  console.info(JSON.stringify({ namespace, storeId, products: products.length, skus: skus.length, conversionVersions: skus.length, barcodes: skus.length, action: "loaded" }));
 }
 
 try {

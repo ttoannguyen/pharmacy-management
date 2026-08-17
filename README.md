@@ -16,6 +16,7 @@ TypeScript và PostgreSQL.
 - [Quy tắc dành cho agent và contributor](AGENTS.md)
 - [Kiến trúc hệ thống](docs/architecture.md)
 - [ADR: quyền hệ thống và quyền nhà thuốc](docs/adr/004-system-and-store-administration.md)
+- [ADR: version conversion StoreSKU](docs/adr/005-store-sku-conversion-history.md)
 - [Mô hình domain](docs/domain/domain-model.md)
 - [Quy tắc nghiệp vụ](docs/domain/business-rules.md)
 - [Chiến lược dữ liệu thuốc](docs/data/medicine-catalog-strategy.md)

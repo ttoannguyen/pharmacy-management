@@ -82,6 +82,7 @@ infrastructure implements ports owned by application/domain
 ### Dữ liệu nhà thuốc
 
 - Store product, SKU, tên hiển thị và local override.
+- Conversion hiện tại của SKU cùng lịch sử version có khoảng hiệu lực.
 - Giá nhập, giá bán, vị trí kệ, tồn tối thiểu.
 - Barcode nội bộ và quy đổi đơn vị.
 - Nhà cung cấp, lô, tồn kho và stock movement.
@@ -139,6 +140,11 @@ Stock movement là source of truth. Có thể tạo bảng balance/materialized 
 
 Báo cáo doanh thu và giá vốn dựa trên transaction lines cùng batch allocations,
 không dựa trên giá bán hay giá nhập hiện tại của master data.
+
+`StoreSku.quantityInBaseUnit` là projection conversion hiện tại. Mỗi lần thay đổi
+phải tạo `StoreSkuConversionVersion` kế tiếp và đóng version cũ trong cùng
+transaction. Receipt/sale line tương lai snapshot cả conversion và số version;
+không đọc lại master data để tính lịch sử. Xem ADR-005.
 
 Authenticated dashboard layout resolves the trusted workspace once and passes a
 minimal store/membership summary to its persistent client provider. Child home

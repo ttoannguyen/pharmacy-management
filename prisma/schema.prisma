@@ -44,22 +44,23 @@ enum CatalogSubmissionStatus {
 }
 
 model User {
-  id             String      @id @default(uuid()) @db.Uuid
-  externalAuthId String?     @unique @map("external_auth_id")
-  email          String      @unique
-  displayName    String?     @map("display_name")
-  passwordHash   String?     @map("password_hash")
-  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(6)
-  isActive       Boolean     @default(true) @map("is_active")
-  systemRole     SystemRole  @default(USER) @map("system_role")
-  memberships    Membership[]
-  sessions       AuthSession[]
-  loginAttempts  AuthLoginAttempt[]
-  submissions    CatalogSubmission[] @relation("CatalogSubmissionAuthor")
-  reviews        CatalogSubmission[] @relation("CatalogSubmissionReviewer")
-  auditLogs      AuditLog[]
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String                      @id @default(uuid()) @db.Uuid
+  externalAuthId        String?                     @unique @map("external_auth_id")
+  email                 String                      @unique
+  displayName           String?                     @map("display_name")
+  passwordHash          String?                     @map("password_hash")
+  emailVerifiedAt       DateTime?                   @map("email_verified_at") @db.Timestamptz(6)
+  isActive              Boolean                     @default(true) @map("is_active")
+  systemRole            SystemRole                  @default(USER) @map("system_role")
+  memberships           Membership[]
+  sessions              AuthSession[]
+  loginAttempts         AuthLoginAttempt[]
+  submissions           CatalogSubmission[]         @relation("CatalogSubmissionAuthor")
+  reviews               CatalogSubmission[]         @relation("CatalogSubmissionReviewer")
+  skuConversionVersions StoreSkuConversionVersion[]
+  auditLogs             AuditLog[]
+  createdAt             DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([systemRole, isActive])
   @@map("users")
@@ -83,34 +84,34 @@ model AuthSession {
 }
 
 model AuthLoginAttempt {
-  id           String    @id @default(uuid()) @db.Uuid
-  keyHash      String    @unique @map("key_hash")
-  failedCount  Int       @default(0) @map("failed_count")
-  windowStart  DateTime  @map("window_start") @db.Timestamptz(6)
-  lockedUntil  DateTime? @map("locked_until") @db.Timestamptz(6)
-  userId       String?   @map("user_id") @db.Uuid
-  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String    @id @default(uuid()) @db.Uuid
+  keyHash     String    @unique @map("key_hash")
+  failedCount Int       @default(0) @map("failed_count")
+  windowStart DateTime  @map("window_start") @db.Timestamptz(6)
+  lockedUntil DateTime? @map("locked_until") @db.Timestamptz(6)
+  userId      String?   @map("user_id") @db.Uuid
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([lockedUntil])
   @@map("auth_login_attempts")
 }
 
 model Store {
-  id          String       @id @default(uuid()) @db.Uuid
-  code        String       @unique
+  id          String              @id @default(uuid()) @db.Uuid
+  code        String              @unique
   name        String
-  timezone    String       @default("Asia/Bangkok")
-  isActive    Boolean      @default(true) @map("is_active")
+  timezone    String              @default("Asia/Bangkok")
+  isActive    Boolean             @default(true) @map("is_active")
   memberships Membership[]
   products    StoreProduct[]
   skus        StoreSku[]
   barcodes    StoreBarcode[]
   submissions CatalogSubmission[]
   auditLogs   AuditLog[]
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("stores")
 }
@@ -132,10 +133,10 @@ model Membership {
 }
 
 model Unit {
-  id        String    @id @default(uuid()) @db.Uuid
-  code      String    @unique
+  id        String         @id @default(uuid()) @db.Uuid
+  code      String         @unique
   name      String
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   products  StoreProduct[]
   skus      StoreSku[]
 
@@ -221,13 +222,13 @@ model RegisteredProductVersion {
   id                  String            @id @default(uuid()) @db.Uuid
   registeredProductId String            @map("registered_product_id") @db.Uuid
   version             Int
-  data                 Json
-  source               CatalogSource
-  sourceReference      String?           @map("source_reference")
-  validFrom            DateTime           @map("valid_from") @db.Timestamptz(6)
-  validTo              DateTime?          @map("valid_to") @db.Timestamptz(6)
-  registeredProduct    RegisteredProduct  @relation(fields: [registeredProductId], references: [id], onDelete: Restrict)
-  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  data                Json
+  source              CatalogSource
+  sourceReference     String?           @map("source_reference")
+  validFrom           DateTime          @map("valid_from") @db.Timestamptz(6)
+  validTo             DateTime?         @map("valid_to") @db.Timestamptz(6)
+  registeredProduct   RegisteredProduct @relation(fields: [registeredProductId], references: [id], onDelete: Restrict)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([registeredProductId, version])
   @@map("registered_product_versions")
@@ -239,7 +240,7 @@ model ProductPackage {
   description         String
   packageQuantity     Decimal?           @map("package_quantity") @db.Decimal(18, 6)
   packageUnit         String?            @map("package_unit")
-  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  verificationStatus  VerificationStatus @default(UNVERIFIED) @map("verification_status")
   registeredProduct   RegisteredProduct  @relation(fields: [registeredProductId], references: [id], onDelete: Restrict)
   barcodes            GlobalBarcode[]
   storeSkus           StoreSku[]
@@ -251,16 +252,16 @@ model ProductPackage {
 }
 
 model GlobalBarcode {
-  id                  String             @id @default(uuid()) @db.Uuid
-  productPackageId    String             @map("product_package_id") @db.Uuid
-  barcode             String
+  id                 String             @id @default(uuid()) @db.Uuid
+  productPackageId   String             @map("product_package_id") @db.Uuid
+  barcode            String
   verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
-  validFrom           DateTime?          @map("valid_from") @db.Timestamptz(6)
-  validTo             DateTime?          @map("valid_to") @db.Timestamptz(6)
-  source              CatalogSource
-  sourceReference     String?            @map("source_reference")
-  productPackage      ProductPackage     @relation(fields: [productPackageId], references: [id], onDelete: Restrict)
-  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  validFrom          DateTime?          @map("valid_from") @db.Timestamptz(6)
+  validTo            DateTime?          @map("valid_to") @db.Timestamptz(6)
+  source             CatalogSource
+  sourceReference    String?            @map("source_reference")
+  productPackage     ProductPackage     @relation(fields: [productPackageId], references: [id], onDelete: Restrict)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([productPackageId, barcode])
   @@index([barcode, verificationStatus])
@@ -268,53 +269,75 @@ model GlobalBarcode {
 }
 
 model StoreProduct {
-  id                    String             @id @default(uuid()) @db.Uuid
-  storeId               String             @map("store_id") @db.Uuid
-  registeredProductId   String?            @map("registered_product_id") @db.Uuid
-  baseUnitId            String             @map("base_unit_id") @db.Uuid
-  displayName           String             @map("display_name")
-  shelfLocation         String?            @map("shelf_location")
-  minimumStockBase      Decimal            @default(0) @map("minimum_stock_base") @db.Decimal(18, 6)
-  basedOnGlobalVersion  Int?               @map("based_on_global_version")
-  overrides             Json?
-  isActive              Boolean            @default(true) @map("is_active")
-  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  registeredProduct     RegisteredProduct? @relation(fields: [registeredProductId], references: [id], onDelete: SetNull)
-  baseUnit              Unit               @relation(fields: [baseUnitId], references: [id], onDelete: Restrict)
-  skus                  StoreSku[] @relation("StoreSkuProduct")
-  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  archivedAt            DateTime?          @map("archived_at") @db.Timestamptz(6)
+  id                   String             @id @default(uuid()) @db.Uuid
+  storeId              String             @map("store_id") @db.Uuid
+  registeredProductId  String?            @map("registered_product_id") @db.Uuid
+  baseUnitId           String             @map("base_unit_id") @db.Uuid
+  displayName          String             @map("display_name")
+  shelfLocation        String?            @map("shelf_location")
+  minimumStockBase     Decimal            @default(0) @map("minimum_stock_base") @db.Decimal(18, 6)
+  basedOnGlobalVersion Int?               @map("based_on_global_version")
+  overrides            Json?
+  isActive             Boolean            @default(true) @map("is_active")
+  store                Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  registeredProduct    RegisteredProduct? @relation(fields: [registeredProductId], references: [id], onDelete: SetNull)
+  baseUnit             Unit               @relation(fields: [baseUnitId], references: [id], onDelete: Restrict)
+  skus                 StoreSku[]         @relation("StoreSkuProduct")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt           DateTime?          @map("archived_at") @db.Timestamptz(6)
 
+  @@unique([storeId, id])
   @@index([storeId, displayName])
   @@index([storeId, registeredProductId])
-  @@unique([storeId, id])
   @@map("store_products")
 }
 
 model StoreSku {
-  id                   String          @id @default(uuid()) @db.Uuid
-  storeId              String          @map("store_id") @db.Uuid
-  storeProductId       String          @map("store_product_id") @db.Uuid
-  productPackageId     String?         @map("product_package_id") @db.Uuid
-  unitId               String          @map("unit_id") @db.Uuid
-  code                 String
-  quantityInBaseUnit   Decimal         @map("quantity_in_base_unit") @db.Decimal(18, 6)
-  sellingPriceMinor    BigInt          @map("selling_price_minor")
-  isActive             Boolean         @default(true) @map("is_active")
-  store                Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  storeProduct         StoreProduct    @relation("StoreSkuProduct", fields: [storeId, storeProductId], references: [storeId, id], onDelete: Restrict)
-  productPackage       ProductPackage? @relation(fields: [productPackageId], references: [id], onDelete: SetNull)
-  unit                 Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  barcodes             StoreBarcode[] @relation("StoreBarcodeSku")
-  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  archivedAt           DateTime?       @map("archived_at") @db.Timestamptz(6)
+  id                       String                      @id @default(uuid()) @db.Uuid
+  storeId                  String                      @map("store_id") @db.Uuid
+  storeProductId           String                      @map("store_product_id") @db.Uuid
+  productPackageId         String?                     @map("product_package_id") @db.Uuid
+  unitId                   String                      @map("unit_id") @db.Uuid
+  code                     String
+  quantityInBaseUnit       Decimal                     @map("quantity_in_base_unit") @db.Decimal(18, 6)
+  currentConversionVersion Int                         @default(1) @map("current_conversion_version")
+  sellingPriceMinor        BigInt                      @map("selling_price_minor")
+  isActive                 Boolean                     @default(true) @map("is_active")
+  store                    Store                       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  storeProduct             StoreProduct                @relation("StoreSkuProduct", fields: [storeId, storeProductId], references: [storeId, id], onDelete: Restrict)
+  productPackage           ProductPackage?             @relation(fields: [productPackageId], references: [id], onDelete: SetNull)
+  unit                     Unit                        @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  barcodes                 StoreBarcode[]              @relation("StoreBarcodeSku")
+  conversionVersions       StoreSkuConversionVersion[]
+  createdAt                DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt               DateTime?                   @map("archived_at") @db.Timestamptz(6)
 
   @@unique([storeId, code])
   @@unique([storeId, id])
   @@index([storeId, storeProductId])
   @@map("store_skus")
+}
+
+model StoreSkuConversionVersion {
+  id                 String    @id @default(uuid()) @db.Uuid
+  storeId            String    @map("store_id") @db.Uuid
+  storeSkuId         String    @map("store_sku_id") @db.Uuid
+  version            Int
+  quantityInBaseUnit Decimal   @map("quantity_in_base_unit") @db.Decimal(18, 6)
+  effectiveFrom      DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo        DateTime? @map("effective_to") @db.Timestamptz(6)
+  reason             String
+  actorId            String?   @map("actor_id") @db.Uuid
+  storeSku           StoreSku  @relation(fields: [storeId, storeSkuId], references: [storeId, id], onDelete: Restrict)
+  actor              User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([storeId, storeSkuId, version], map: "sku_conversion_store_sku_version_key")
+  @@index([storeId, storeSkuId, effectiveTo], map: "sku_conversion_current_lookup_idx")
+  @@index([actorId], map: "sku_conversion_actor_idx")
+  @@map("store_sku_conversion_versions")
 }
 
 model StoreBarcode {
@@ -333,22 +356,22 @@ model StoreBarcode {
 }
 
 model CatalogSubmission {
-  id                    String                  @id @default(uuid()) @db.Uuid
-  storeId               String                  @map("store_id") @db.Uuid
-  submittedById         String                  @map("submitted_by_id") @db.Uuid
-  reviewedById          String?                 @map("reviewed_by_id") @db.Uuid
-  barcode               String?
-  proposedData          Json                    @map("proposed_data")
-  evidence              Json?
-  status                 CatalogSubmissionStatus @default(PENDING)
-  reviewNote            String?                 @map("review_note")
-  resolvedProductId     String?                 @map("resolved_product_id") @db.Uuid
-  resolvedPackageId     String?                 @map("resolved_package_id") @db.Uuid
-  store                  Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  submittedBy            User                    @relation("CatalogSubmissionAuthor", fields: [submittedById], references: [id], onDelete: Restrict)
-  reviewedBy             User?                   @relation("CatalogSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
-  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  reviewedAt             DateTime?               @map("reviewed_at") @db.Timestamptz(6)
+  id                String                  @id @default(uuid()) @db.Uuid
+  storeId           String                  @map("store_id") @db.Uuid
+  submittedById     String                  @map("submitted_by_id") @db.Uuid
+  reviewedById      String?                 @map("reviewed_by_id") @db.Uuid
+  barcode           String?
+  proposedData      Json                    @map("proposed_data")
+  evidence          Json?
+  status            CatalogSubmissionStatus @default(PENDING)
+  reviewNote        String?                 @map("review_note")
+  resolvedProductId String?                 @map("resolved_product_id") @db.Uuid
+  resolvedPackageId String?                 @map("resolved_package_id") @db.Uuid
+  store             Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  submittedBy       User                    @relation("CatalogSubmissionAuthor", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy        User?                   @relation("CatalogSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewedAt        DateTime?               @map("reviewed_at") @db.Timestamptz(6)
 
   @@index([storeId, status])
   @@index([barcode])
@@ -356,19 +379,19 @@ model CatalogSubmission {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
-  storeId     String?  @map("store_id") @db.Uuid
-  actorId     String   @map("actor_id") @db.Uuid
-  action      String
-  targetType  String   @map("target_type")
-  targetId    String   @map("target_id")
-  reason      String?
-  before      Json?
-  after       Json?
-  metadata    Json?
-  store       Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  actor       User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id         String   @id @default(uuid()) @db.Uuid
+  storeId    String?  @map("store_id") @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  reason     String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  store      Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([storeId, createdAt])
   @@index([targetType, targetId])

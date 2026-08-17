@@ -12,7 +12,7 @@ export type StoreProductList = {
     displayName: string;
     shelfLocation: string | null;
     baseUnit: { id: string; code: string; name: string };
-    skus: Array<{ id: string; code: string; quantityInBaseUnit: string; sellingPriceMinor: string; updatedAt: string; barcodes: string[]; unit: { id: string; code: string; name: string } }>;
+    skus: Array<{ id: string; code: string; quantityInBaseUnit: string; currentConversionVersion: number; sellingPriceMinor: string; updatedAt: string; barcodes: string[]; unit: { id: string; code: string; name: string } }>;
   }>;
   page: number;
   pageSize: number;
@@ -21,6 +21,7 @@ export type StoreProductList = {
 };
 
 export type StoreProductDetail = StoreProductList["items"][number] & {
+  updatedAt: string;
   minimumStockBase: string;
   basedOnGlobalVersion: number | null;
   overrides: Record<string, unknown> | null;
@@ -79,6 +80,19 @@ export function invalidateCatalogAfterSkuMutation(
     queryClient.invalidateQueries({ queryKey: keys.product(productId) }),
     queryClient.invalidateQueries({ queryKey: keys.products() }),
     queryClient.invalidateQueries({ queryKey: keys.overview() }),
+  ]);
+}
+
+export function invalidateCatalogAfterProductMutation(
+  queryClient: { invalidateQueries: (filters: { queryKey: readonly unknown[]; refetchType?: "active" }) => Promise<unknown> },
+  productId: string,
+  scope = DEFAULT_STORE_SCOPE,
+) {
+  const keys = createCatalogQueryKeys(scope);
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: keys.product(productId), refetchType: "active" }),
+    queryClient.invalidateQueries({ queryKey: keys.products(), refetchType: "active" }),
+    queryClient.invalidateQueries({ queryKey: keys.overview(), refetchType: "active" }),
   ]);
 }
 
@@ -210,17 +224,31 @@ export function useCreateStoreProduct() {
 export function useUpdateStoreProduct(productId: string) {
   const queryClient = useQueryClient();
   const scope = useStoreScope();
-  const keys = createCatalogQueryKeys(scope);
   return useMutation({
-    mutationFn: (input: Record<string, unknown>) => readApi<{ product: unknown }>(`/api/catalog/products/${productId}`, {
+    mutationFn: (input: {
+      displayName?: string;
+      shelfLocation?: string | null;
+      minimumStockBase?: string;
+      expectedUpdatedAt: string;
+      reason: string;
+    }) => readApi<{ product: unknown }>(`/api/catalog/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }),
-    onSuccess: () => Promise.all([
-      queryClient.invalidateQueries({ queryKey: keys.product(productId), refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: keys.products(), refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: keys.overview(), refetchType: "active" }),
-    ]),
+    onSuccess: () => invalidateCatalogAfterProductMutation(queryClient, productId, scope),
+  });
+}
+
+export function useArchiveStoreProduct(productId: string) {
+  const queryClient = useQueryClient();
+  const scope = useStoreScope();
+  return useMutation({
+    mutationFn: (input: { expectedUpdatedAt: string; reason: string }) => readApi<{ product: unknown }>(`/api/catalog/products/${productId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    onSuccess: () => invalidateCatalogAfterProductMutation(queryClient, productId, scope),
   });
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Browser evidence runner for PERF-3.2 and PERF-3.4.
+ * Browser evidence runner for PERF-3.1, PERF-3.2 and PERF-3.4.
  *
  * Start a local production server separately and point it at a disposable,
  * deterministically seeded database. The report stores only paths, counts and
@@ -84,6 +84,8 @@ async function main() {
   let createdProductId = null;
   let createdSkuId = null;
   let cleanup = { attempted: false, archived: false, status: null };
+  let lifecycleProductId = null;
+  let productCleanup = { attempted: false, archived: false, status: null };
 
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -151,7 +153,7 @@ async function main() {
       .slice(startIndex, endIndex)
       .filter((request) => request.path.startsWith("/api/"))
       .map(({ path, method, status, failed }) => ({ path, method, status, failed }));
-    const hasBoundedSkuMutationRefetch = (records, mutationPath, mutationMethod, detailPath) => {
+    const hasBoundedMutationRefetch = (records, mutationPath, mutationMethod, detailPath) => {
       const mutations = records.filter((request) => request.path === mutationPath && request.method === mutationMethod);
       const reads = records.filter((request) => request.method === "GET");
       return mutations.length === 1
@@ -381,6 +383,96 @@ async function main() {
     const archiveMutationEndIndex = requests.length;
     const archiveMutationRequests = apiRequestsBetween(archiveMutationStartIndex, archiveMutationEndIndex);
 
+    // Create a namespaced product so update/archive evidence never mutates the
+    // deterministic seed product. The archived fixture remains traceable and is
+    // excluded from operational lookup instead of being hard-deleted.
+    const lifecycleCode = `BROWSER-PRODUCT-${Date.now()}`;
+    const createdLifecycleProduct = await page.evaluate(async ({ code }) => {
+      const unitsResponse = await fetch("/api/catalog/units");
+      const unitsBody = await unitsResponse.json();
+      const unit = unitsBody?.data?.units?.[0];
+      if (!unitsResponse.ok || !unit?.id) {
+        return { ok: false, status: unitsResponse.status, product: null };
+      }
+      const response = await fetch("/api/catalog/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: code,
+          baseUnitId: unit.id,
+          minimumStockBase: 0,
+          sku: {
+            code: `${code}-SKU`,
+            unitId: unit.id,
+            quantityInBaseUnit: 1,
+            sellingPriceMinor: 1000,
+          },
+        }),
+      });
+      const body = await response.json();
+      return { ok: response.ok, status: response.status, product: body?.data?.product ?? null };
+    }, { code: lifecycleCode });
+    if (!createdLifecycleProduct.ok || !createdLifecycleProduct.product?.id) {
+      throw new Error(`Lifecycle product creation failed with status ${createdLifecycleProduct.status}.`);
+    }
+    lifecycleProductId = createdLifecycleProduct.product.id;
+    await page.goto(`${baseUrl}/dashboard/catalog/${lifecycleProductId}`, { waitUntil: "networkidle" });
+    // The authenticated shell schedules bounded idle warmup. Let that unrelated
+    // work settle before opening the mutation request window so the lifecycle
+    // assertion measures only requests triggered by update/archive.
+    await page.waitForTimeout(1_500);
+    await page.waitForLoadState("networkidle");
+
+    const updatedProductName = `${lifecycleCode} UPDATED`;
+    const productUpdateStartIndex = requests.length;
+    await page.getByRole("button", { name: "Sửa thông tin" }).click();
+    await page.getByLabel("Tên hiển thị").fill(updatedProductName);
+    await page.getByLabel("Vị trí kệ").fill("PERF-A1");
+    await page.getByLabel("Tồn tối thiểu").fill("12.5");
+    await page.getByLabel(/^Lý do sửa/).fill("Browser product update evidence");
+    const [productUpdateResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === baseOrigin
+          && url.pathname === `/api/catalog/products/${lifecycleProductId}`
+          && response.request().method() === "PATCH";
+      }),
+      page.getByRole("button", { name: "Lưu thông tin" }).click(),
+    ]);
+    if (!productUpdateResponse.ok()) {
+      throw new Error(`Product update failed with status ${productUpdateResponse.status()}.`);
+    }
+    const updatedProductBody = await productUpdateResponse.json();
+    const updatedProduct = updatedProductBody?.data?.product ?? null;
+    await expect(page.getByRole("heading", { level: 1, name: updatedProductName })).toBeVisible();
+    await expect(page.getByText("PERF-A1", { exact: true })).toBeVisible();
+    const productUpdateEndIndex = requests.length;
+    const productUpdateRequests = apiRequestsBetween(productUpdateStartIndex, productUpdateEndIndex);
+
+    const productArchiveStartIndex = requests.length;
+    await page.getByRole("button", { name: "Ngừng kinh doanh" }).click();
+    await page.getByLabel("Lý do ngừng kinh doanh").fill("Browser product archive cleanup");
+    const [productArchiveResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === baseOrigin
+          && url.pathname === `/api/catalog/products/${lifecycleProductId}`
+          && response.request().method() === "DELETE";
+      }),
+      page.getByRole("button", { name: "Xác nhận ngừng kinh doanh" }).click(),
+    ]);
+    productCleanup = {
+      attempted: true,
+      archived: productArchiveResponse.ok(),
+      status: productArchiveResponse.status(),
+    };
+    if (!productArchiveResponse.ok()) {
+      throw new Error(`Product archive failed with status ${productArchiveResponse.status()}.`);
+    }
+    await expect(page.getByText("Đã archive", { exact: true })).toBeVisible();
+    const productArchiveEndIndex = requests.length;
+    const productArchiveRequests = apiRequestsBetween(productArchiveStartIndex, productArchiveEndIndex);
+
     const detailApiPath = `/api/catalog/products/${productId}`;
     const skuApiPath = `/api/catalog/products/${productId}/skus/${createdSkuId}`;
     const lifecycle = {
@@ -388,9 +480,22 @@ async function main() {
       update: {
         requests: updateMutationRequests,
         quantityInBaseUnit: updatedSku?.quantityInBaseUnit ?? null,
+        currentConversionVersion: updatedSku?.currentConversionVersion ?? null,
         sellingPriceMinor: updatedSku?.sellingPriceMinor ?? null,
       },
       archive: { requests: archiveMutationRequests, status: cleanup.status },
+    };
+    const lifecycleProductApiPath = `/api/catalog/products/${lifecycleProductId}`;
+    const productLifecycle = {
+      productId: lifecycleProductId,
+      update: {
+        requests: productUpdateRequests,
+        displayName: updatedProduct?.displayName ?? null,
+        shelfLocation: updatedProduct?.shelfLocation ?? null,
+        minimumStockBase: updatedProduct?.minimumStockBase ?? null,
+      },
+      archive: { requests: productArchiveRequests, status: productCleanup.status },
+      cleanup: productCleanup,
     };
 
     const mutation = {
@@ -403,6 +508,7 @@ async function main() {
       overviewRequestDelta: overviewRequestsAfterMutationReturn - overviewRequestsBeforeMutationReturn,
       returnAndConvergeMs: Number(mutationReturnMs.toFixed(1)),
       lifecycle,
+      productLifecycle,
       cleanup,
     };
 
@@ -418,25 +524,42 @@ async function main() {
         && !skeletonVisibleDuringRefetch,
       mutationConvergesInOneOverviewRequest: mutation.overviewRequestDelta === 1
         && mutation.skuCountAfter === mutation.skuCountBefore + 1,
-      skuAddAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+      skuAddAvoidsRefetchWaterfall: hasBoundedMutationRefetch(
         addMutationRequests,
         `/api/catalog/products/${productId}/skus`,
         "POST",
         detailApiPath,
       ),
-      skuUpdateAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+      skuUpdateAvoidsRefetchWaterfall: hasBoundedMutationRefetch(
         updateMutationRequests,
         skuApiPath,
         "PUT",
         detailApiPath,
-      ) && updatedSku?.quantityInBaseUnit === "2" && updatedSku?.sellingPriceMinor === "1500",
-      skuArchiveAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+      ) && updatedSku?.quantityInBaseUnit === "2"
+        && updatedSku?.currentConversionVersion === 2
+        && updatedSku?.sellingPriceMinor === "1500",
+      skuArchiveAvoidsRefetchWaterfall: hasBoundedMutationRefetch(
         archiveMutationRequests,
         skuApiPath,
         "PATCH",
         detailApiPath,
       ),
+      productUpdateAvoidsRefetchWaterfall: hasBoundedMutationRefetch(
+        productUpdateRequests,
+        lifecycleProductApiPath,
+        "PATCH",
+        lifecycleProductApiPath,
+      ) && updatedProduct?.displayName === updatedProductName
+        && updatedProduct?.shelfLocation === "PERF-A1"
+        && updatedProduct?.minimumStockBase === "12.5",
+      productArchiveAvoidsRefetchWaterfall: hasBoundedMutationRefetch(
+        productArchiveRequests,
+        lifecycleProductApiPath,
+        "DELETE",
+        lifecycleProductApiPath,
+      ),
       mutationCleanupArchivedSku: cleanup.archived,
+      mutationCleanupArchivedProduct: productCleanup.archived,
       noFailedApiRequests: requests
         .filter((request) => request.path.startsWith("/api/"))
         .every((request) => !request.failed
@@ -468,6 +591,29 @@ async function main() {
     console.log(JSON.stringify({ output, returnNavigation, mutation, criteria }, null, 2));
     if (failures.length) throw new Error(`Browser performance criteria failed: ${failures.join(", ")}.`);
   } finally {
+    if (lifecycleProductId && page && !productCleanup.archived) {
+      try {
+        productCleanup = await page.evaluate(async ({ productId }) => {
+          const detailResponse = await fetch(`/api/catalog/products/${productId}`);
+          const detailBody = await detailResponse.json();
+          const updatedAt = detailBody?.data?.product?.updatedAt;
+          if (!detailResponse.ok || !updatedAt) {
+            return { attempted: true, archived: false, status: detailResponse.status };
+          }
+          const response = await fetch(`/api/catalog/products/${productId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              expectedUpdatedAt: updatedAt,
+              reason: "Browser product lifecycle failure cleanup",
+            }),
+          });
+          return { attempted: true, archived: response.ok, status: response.status };
+        }, { productId: lifecycleProductId });
+      } catch {
+        productCleanup = { attempted: true, archived: false, status: null };
+      }
+    }
     if (createdSkuId && createdProductId && page && !cleanup.attempted) {
       try {
         cleanup = await page.evaluate(async ({ productId, skuId }) => {
@@ -484,6 +630,9 @@ async function main() {
     }
     if (createdSkuId && !cleanup.archived) {
       console.error("Created browser fixture SKU could not be archived; dispose the test database.");
+    }
+    if (lifecycleProductId && !productCleanup.archived) {
+      console.error("Created browser fixture product could not be archived; dispose the test database.");
     }
     await browser.close();
   }

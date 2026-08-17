@@ -6,8 +6,9 @@ Ngày đánh giá: 2026-08-17.
 
 Ứng dụng hiện là một foundation tốt cho multi-tenant authentication và catalog,
 nhưng chưa phải MVP vận hành nhà thuốc. Chỉ các luồng đăng nhập, chọn nhà thuốc,
-phân quyền nền tảng, xem/tìm/tạo sản phẩm local và cấu hình SKU đầu tiên đã có
-code chạy. Nhập kho, tồn theo lô, bán hàng FEFO, trả/hủy và báo cáo chưa có schema
+phân quyền nền tảng và catalog operational lifecycle đã có code chạy: xem/tìm/tạo,
+sửa/archive product, thêm/sửa/archive SKU và version conversion. Nhập kho, tồn
+theo lô, bán hàng FEFO, trả/hủy và báo cáo chưa có schema
 và transaction boundary cần thiết, vì vậy không được biểu diễn bằng số liệu giả
 hoặc màn hình khiến người dùng hiểu nhầm là đã hoạt động.
 
@@ -29,6 +30,9 @@ hoặc màn hình khiến người dùng hiểu nhầm là đã hoạt động.
   và tồn tối thiểu; sau khi lưu quay lại danh mục.
 - Product detail cho phép sửa giá/quy đổi và archive SKU với reason, audit và
   stale-write conflict; cache mutation chỉ refetch active detail một lần.
+- Product local fields và product archive có cùng tenant/audit/concurrency guard;
+  conversion đổi từ version hiệu lực hiện tại sang version kế tiếp trong một
+  transaction thay vì viết lại lịch sử.
 
 ## Khoảng trống ưu tiên
 

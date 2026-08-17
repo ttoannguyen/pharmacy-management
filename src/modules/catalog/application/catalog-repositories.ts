@@ -12,6 +12,7 @@ export type StoreCatalogItem = {
     code: string;
     unit: { id: string; code: string; name: string };
     quantityInBaseUnit: string;
+    currentConversionVersion: number;
     sellingPriceMinor: string;
     updatedAt: string;
     barcodes: string[];
@@ -44,6 +45,7 @@ export type StoreCatalogRepository = {
 };
 
 export type StoreProductDetail = StoreCatalogItem & {
+  updatedAt: string;
   minimumStockBase: string;
   basedOnGlobalVersion: number | null;
   overrides: Record<string, unknown> | null;

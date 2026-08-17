@@ -22,12 +22,30 @@ export const storeProductInputSchema = z.object({
   }).optional(),
 });
 
-export const storeProductOverrideSchema = z.object({
+const exactNonnegativeQuantitySchema = z.union([
+  z.string().trim(),
+  z.number().finite().transform((value) => String(value)),
+]).pipe(
+  z.string().regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/, "Quantity must fit decimal(18,6)."),
+);
+
+export const updateStoreProductSchema = z.object({
   displayName: z.string().trim().min(1).max(240).optional(),
   shelfLocation: z.string().trim().max(120).nullable().optional(),
+  minimumStockBase: exactNonnegativeQuantitySchema.optional(),
   overrides: z.record(z.string(), z.unknown()).optional(),
-}).refine((input) => input.displayName !== undefined || input.shelfLocation !== undefined || input.overrides !== undefined, {
-  message: "At least one explicit override is required.",
+  expectedUpdatedAt: z.iso.datetime({ offset: true }),
+  reason: z.string().trim().min(1).max(240),
+}).refine((input) => input.displayName !== undefined
+  || input.shelfLocation !== undefined
+  || input.minimumStockBase !== undefined
+  || input.overrides !== undefined, {
+  message: "At least one local product change is required.",
+});
+
+export const archiveStoreProductSchema = z.object({
+  expectedUpdatedAt: z.iso.datetime({ offset: true }),
+  reason: z.string().trim().min(1).max(240),
 });
 
 export const addStoreSkuSchema = z.object({
@@ -63,7 +81,8 @@ export const archiveStoreSkuSchema = z.object({
 });
 
 export type StoreProductInput = z.infer<typeof storeProductInputSchema>;
-export type StoreProductOverrideInput = z.infer<typeof storeProductOverrideSchema>;
+export type UpdateStoreProductInput = z.infer<typeof updateStoreProductSchema>;
+export type ArchiveStoreProductInput = z.infer<typeof archiveStoreProductSchema>;
 export type AddStoreSkuInput = z.infer<typeof addStoreSkuSchema>;
 export type UpdateStoreSkuInput = z.infer<typeof updateStoreSkuSchema>;
 export type ArchiveStoreSkuInput = z.infer<typeof archiveStoreSkuSchema>;
@@ -95,8 +114,15 @@ export function assertStoreProductInput(context: StoreContext, input: StoreProdu
   return parsed.sku ? { ...parsed, sku: { ...parsed.sku, code: normalizeSkuCode(parsed.sku.code) } } : parsed;
 }
 
-export function assertStoreProductOverride(context: StoreContext, storeId: string, input: StoreProductOverrideInput) {
-  const parsed = storeProductOverrideSchema.parse(input);
+export function assertUpdateStoreProduct(context: StoreContext, storeId: string, input: UpdateStoreProductInput) {
+  const parsed = updateStoreProductSchema.parse(input);
+  requirePermission(context, "MANAGE_CATALOG");
+  requireStoreAccess(context, storeId);
+  return parsed;
+}
+
+export function assertArchiveStoreProduct(context: StoreContext, storeId: string, input: ArchiveStoreProductInput) {
+  const parsed = archiveStoreProductSchema.parse(input);
   requirePermission(context, "MANAGE_CATALOG");
   requireStoreAccess(context, storeId);
   return parsed;

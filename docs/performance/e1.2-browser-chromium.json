@@ -1,0 +1,232 @@
+{
+  "generatedAt": "2026-08-17T17:06:53.100Z",
+  "stage": "e1.2-current",
+  "environment": "local",
+  "build": "production",
+  "commit": "working-tree-after-b6b3e6b",
+  "dataset": "deterministic demo seed plus namespaced lifecycle fixtures",
+  "runtimeRegion": "docker-host-local",
+  "databaseRegion": "docker-host-local-postgresql-16",
+  "baseUrl": "http://127.0.0.1:3210",
+  "browser": "chromium",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": {
+    "dashboard": {
+      "navigationMs": 117.1,
+      "domContentLoadedMs": 69,
+      "loadMs": 117.1,
+      "lcpMs": 76,
+      "cls": 0,
+      "inpMs": 16
+    },
+    "catalog": {
+      "navigationMs": 100.2,
+      "domContentLoadedMs": 39.5,
+      "loadMs": 100.2,
+      "lcpMs": 128,
+      "cls": 0,
+      "inpMs": null
+    }
+  },
+  "returnNavigation": {
+    "controlFullReload": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 146.1,
+        "p90Ms": 171.1,
+        "p95Ms": 171.1,
+        "maxMs": 171.1
+      },
+      "samplesMs": [
+        146.1,
+        171.1,
+        137.6,
+        154.8,
+        141.8
+      ],
+      "overviewRequestsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "totalOverviewRequests": 5
+    },
+    "warmClientReturn": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 72.5,
+        "p90Ms": 88.4,
+        "p95Ms": 88.4,
+        "maxMs": 88.4
+      },
+      "samplesMs": [
+        88.4,
+        70.8,
+        72.5,
+        55.8,
+        75.8
+      ],
+      "overviewRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "totalOverviewRequests": 0,
+      "dashboardRscPrefetchRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dashboardRscRequestsOnClickPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxCacheAgeMs": 3754.6,
+      "withinStaleTime": true,
+      "cachedValueVisibleOnEveryReturn": true
+    }
+  },
+  "mutation": {
+    "route": "/dashboard/catalog/[id]",
+    "productId": "80000000-0000-4000-8000-000000000001",
+    "skuCountBefore": 1,
+    "skuCountAfter": 2,
+    "cachedValueDuringRefetch": "1",
+    "skeletonVisibleDuringRefetch": false,
+    "overviewRequestDelta": 1,
+    "returnAndConvergeMs": 1584.5,
+    "lifecycle": {
+      "add": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus",
+            "method": "POST",
+            "status": 201,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ]
+      },
+      "update": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/2aa5ccf1-fb74-4a03-bff9-032e77275d15",
+            "method": "PUT",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "quantityInBaseUnit": "2",
+        "currentConversionVersion": 2,
+        "sellingPriceMinor": "1500"
+      },
+      "archive": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/2aa5ccf1-fb74-4a03-bff9-032e77275d15",
+            "method": "PATCH",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "status": 200
+      }
+    },
+    "productLifecycle": {
+      "productId": "773d7c9e-f97d-446e-919e-c952409dbcdf",
+      "update": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/773d7c9e-f97d-446e-919e-c952409dbcdf",
+            "method": "PATCH",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/773d7c9e-f97d-446e-919e-c952409dbcdf",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "displayName": "BROWSER-PRODUCT-1786986410366 UPDATED",
+        "shelfLocation": "PERF-A1",
+        "minimumStockBase": "12.5"
+      },
+      "archive": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/773d7c9e-f97d-446e-919e-c952409dbcdf",
+            "method": "DELETE",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/773d7c9e-f97d-446e-919e-c952409dbcdf",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "status": 200
+      },
+      "cleanup": {
+        "attempted": true,
+        "archived": true,
+        "status": 200
+      }
+    },
+    "cleanup": {
+      "attempted": true,
+      "archived": true,
+      "status": 200
+    }
+  },
+  "criteria": {
+    "directDashboardStillRequiresAuthentication": true,
+    "controlLoadsFetchOverviewExactlyOnce": true,
+    "warmReturnsStayWithinStaleTime": true,
+    "warmReturnsUseCachedOverview": true,
+    "warmReturnsUsePrefetchedDashboardRoute": true,
+    "warmMedianIsFasterThanControl": true,
+    "mutationKeepsCachedValueDuringRefetch": true,
+    "mutationConvergesInOneOverviewRequest": true,
+    "skuAddAvoidsRefetchWaterfall": true,
+    "skuUpdateAvoidsRefetchWaterfall": true,
+    "skuArchiveAvoidsRefetchWaterfall": true,
+    "productUpdateAvoidsRefetchWaterfall": true,
+    "productArchiveAvoidsRefetchWaterfall": true,
+    "mutationCleanupArchivedSku": true,
+    "mutationCleanupArchivedProduct": true,
+    "noFailedApiRequests": true
+  }
+}

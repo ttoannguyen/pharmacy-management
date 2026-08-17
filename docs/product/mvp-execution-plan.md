@@ -37,8 +37,8 @@ COGS phải lấy từ batch allocation; mọi dữ liệu vận hành phải te
 
 Chưa đủ để bắt đầu giao dịch kho:
 
-- Product detail và add/update/archive SKU đã có, nhưng product lifecycle và
-  chính sách version/lock conversion sau giao dịch vẫn chưa hoàn tất.
+- Catalog lifecycle E1 đã hoàn tất; E2 vẫn phải chốt UUID/document number/batch
+  identity/balance projection trước khi tạo transaction kho đầu tiên.
 - Chưa có Supplier, GoodsReceipt, Batch, StockMovement hay balance projection.
 - Chưa có POS, Sale, Payment, FEFO allocation, return/reversal và reporting.
 - Chưa có E2E, load baseline hay restore rehearsal.
@@ -107,11 +107,11 @@ sửa lịch sử về sau.
 - [x] **E1.1 Product detail + add SKU**: product detail read model, tenant-safe
   detail API, transactional add-SKU use case, audit, responsive UI and
   TanStack Query detail cache are implemented and verified.
-- [~] **E1.2 Price/conversion policy + archive**: SKU archive is now available
-  through responsive UI with tenant checks, mandatory reason, last-active-SKU
-  protection and audit. Price/conversion update now has exact input,
-  before/after audit and optimistic concurrency; product lifecycle and the
-  post-transaction conversion version/lock policy remain pending.
+- [x] **E1.2 Price/conversion policy + archive**: responsive product/SKU update
+  and archive flows enforce tenant permission, mandatory reason, safe audit and
+  optimistic concurrency. Conversion changes close the current effective version
+  and create the next `StoreSkuConversionVersion` atomically; Chromium/Firefox
+  lifecycle evidence passes 16/16 criteria.
 
 ### Backend và data
 
@@ -154,6 +154,11 @@ sửa lịch sử về sau.
   qua UI.
 - Product/SKU IDs và conversion đủ ổn định để E3 tham chiếu.
 - Lint, typecheck, tests và build sạch; docs/API/HANDOFF cập nhật.
+
+Implementation note: E1 archive currently has no operational document table to
+conflict with. E3 must extend the archive guard when draft/open receipt lines are
+introduced; E5 does the same for open sale lines. Archived product/SKU IDs and
+conversion versions remain referentially stable and are never hard-deleted.
 
 ---
 
@@ -497,10 +502,8 @@ Chỉ bắt đầu increment khi:
 
 ## 8. Task nên bắt đầu ngay
 
-Thực hiện **E1 Catalog operational readiness**, chia thành hai PR/work package:
-
-1. `E1.1 Product detail + add SKU + tenant/API tests`.
-2. `E1.2 Price/conversion policy + archive + audit + responsive UI`.
-
-Sau E1, làm ADR và migration của E2. Không bắt đầu dashboard doanh thu, POS hoặc
-reporting trước khi E3 tạo được ledger đúng và có reconciliation test.
+E1 Catalog operational readiness đã đạt. Bắt đầu **E2 Inventory architecture và
+schema** bằng ADR cho UUID append-heavy, document number, batch identity, expiry
+và balance reconciliation; sau đó mới tạo migration inventory. Không bắt đầu
+dashboard doanh thu, POS hoặc reporting trước khi E3 tạo được ledger đúng và có
+reconciliation test.

@@ -6,7 +6,7 @@ Module này sở hữu global reference catalog và store-local catalog.
 
 - Shared: DrugConcept, Ingredient, Manufacturer, RegisteredProduct,
   RegisteredProductVersion, ProductPackage, GlobalBarcode.
-- Store-owned: StoreProduct, StoreSku, StoreBarcode.
+- Store-owned: StoreProduct, StoreSku, StoreSkuConversionVersion, StoreBarcode.
 - Moderation: CatalogSubmission.
 
 ## Lookup order
@@ -31,15 +31,22 @@ Repository boundary:
 
 - `GET /api/catalog/products/:id` trả detail của active store, không nhận
   `storeId` từ client.
+- `PATCH /api/catalog/products/:id` sửa tên local, vị trí kệ và tồn tối thiểu với
+  reason + `expectedUpdatedAt`; linked display-name change được giữ như explicit
+  local override.
+- `DELETE /api/catalog/products/:id` soft-archive product với reason, tenant
+  permission, optimistic version guard và audit; SKU/lịch sử không bị xóa.
 - `POST /api/catalog/products/:id/skus` thêm một `StoreSku` trong transaction,
   normalize code/barcode, kiểm tra duplicate theo store và ghi audit cùng
   transaction.
 - `PUT /api/catalog/products/:id/skus/:skuId` sửa giá bán/quy đổi với
   `expectedUpdatedAt`, reason bắt buộc, tenant permission và audit before/after
-  trong cùng transaction; stale writer nhận conflict.
+  trong cùng transaction; stale writer nhận conflict. Đổi conversion đồng thời
+  đóng version hiện tại và tạo `StoreSkuConversionVersion` kế tiếp.
 - `PATCH /api/catalog/products/:id/skus/:skuId` archive SKU theo tenant; không
   hard-delete, yêu cầu reason và không cho archive SKU cuối cùng còn hoạt động
   của sản phẩm.
 - Detail UI ở `/dashboard/catalog/:id` dùng server-rendered initial data rồi
-  hydrate TanStack Query; UI hỗ trợ add/update/archive SKU và mutation thành công
-  chỉ invalidate detail, catalog list và overview keys liên quan.
+  hydrate TanStack Query; UI hỗ trợ update/archive product, add/update/archive
+  SKU và mutation thành công chỉ invalidate detail, catalog list và overview keys
+  liên quan.

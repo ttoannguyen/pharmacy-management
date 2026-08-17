@@ -31,6 +31,7 @@ const storeProductSelect = {
       code: true,
       unit: { select: { id: true, code: true, name: true } },
       quantityInBaseUnit: true,
+      currentConversionVersion: true,
       sellingPriceMinor: true,
       updatedAt: true,
       barcodes: { select: { barcode: true } },
@@ -49,6 +50,7 @@ function mapStoreProduct(product: {
     code: string;
     unit: { id: string; code: string; name: string };
     quantityInBaseUnit: unknown;
+    currentConversionVersion: number;
     sellingPriceMinor: bigint;
     updatedAt: Date;
     barcodes: Array<{ barcode: string }>;
@@ -110,6 +112,7 @@ export function createPrismaStoreCatalogRepository(db: CatalogDatabase): StoreCa
 
 const storeProductDetailSelect = {
   ...storeProductSelect,
+  updatedAt: true,
   minimumStockBase: true,
   basedOnGlobalVersion: true,
   overrides: true,
@@ -138,6 +141,7 @@ export function createPrismaStoreProductDetailRepository(db: StoreProductDetailD
       if (!product) return null;
       return {
         ...mapStoreProduct(product),
+        updatedAt: product.updatedAt.toISOString(),
         minimumStockBase: String(product.minimumStockBase),
         basedOnGlobalVersion: product.basedOnGlobalVersion,
         overrides: product.overrides && typeof product.overrides === "object" && !Array.isArray(product.overrides)

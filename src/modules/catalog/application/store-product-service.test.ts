@@ -6,10 +6,13 @@ import type { StoreContext } from "@/modules/identity/application/store-context"
 
 import {
   addStoreSkuSchema,
+  archiveStoreProductSchema,
+  assertArchiveStoreProduct,
   assertStoreProductInput,
-  assertStoreProductOverride,
+  assertUpdateStoreProduct,
   assertUpdateStoreSku,
   storeProductInputSchema,
+  updateStoreProductSchema,
   updateStoreSkuSchema,
 } from "./store-product-service";
 
@@ -41,9 +44,23 @@ describe("store product application boundary", () => {
     expect(() => assertStoreProductInput(context, { ...validInput, storeId: "00000000-0000-4000-8000-000000000011" })).toThrow(ForbiddenError);
   });
 
-  it("rejects an empty override and accepts explicit store-local changes", () => {
-    expect(() => assertStoreProductOverride(context, context.storeId, {})).toThrow();
-    expect(assertStoreProductOverride(context, context.storeId, { displayName: "Tên riêng" })).toEqual({ displayName: "Tên riêng" });
+  it("requires reason/version for exact store-local product changes", () => {
+    const expectedUpdatedAt = "2026-08-17T12:00:00.000Z";
+    const input = { displayName: "Tên riêng", minimumStockBase: "12.500000", expectedUpdatedAt, reason: "Cập nhật danh mục" };
+    expect(assertUpdateStoreProduct(context, context.storeId, input)).toEqual(input);
+    expect(() => updateStoreProductSchema.parse({ expectedUpdatedAt, reason: "Không có thay đổi" })).toThrow();
+    expect(() => updateStoreProductSchema.parse({ displayName: "Tên", expectedUpdatedAt, reason: "" })).toThrow();
+    expect(() => updateStoreProductSchema.parse({ minimumStockBase: "-1", expectedUpdatedAt, reason: "Sai tồn tối thiểu" })).toThrow();
+    expect(() => updateStoreProductSchema.parse({ minimumStockBase: "1.0000001", expectedUpdatedAt, reason: "Quá độ chính xác" })).toThrow();
+    expect(() => assertUpdateStoreProduct(context, "00000000-0000-4000-8000-000000000011", input)).toThrow(ForbiddenError);
+  });
+
+  it("requires reason/version and tenant permission to archive a store product", () => {
+    const input = { expectedUpdatedAt: "2026-08-17T12:00:00.000Z", reason: "Ngừng kinh doanh" };
+    expect(archiveStoreProductSchema.parse(input)).toEqual(input);
+    expect(assertArchiveStoreProduct(context, context.storeId, input)).toEqual(input);
+    expect(() => archiveStoreProductSchema.parse({ ...input, reason: "" })).toThrow();
+    expect(() => assertArchiveStoreProduct(context, "00000000-0000-4000-8000-000000000011", input)).toThrow(ForbiddenError);
   });
 
   it("validates SKU quantity and price at the application boundary", () => {

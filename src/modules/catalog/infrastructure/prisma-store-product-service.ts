@@ -2,7 +2,8 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
 import {
   assertStoreProductInput,
-  assertStoreProductOverride,
+  assertUpdateStoreProduct,
+  assertArchiveStoreProduct,
   assertAddStoreSku,
   assertUpdateStoreSku,
   assertArchiveStoreSku,
@@ -10,7 +11,8 @@ import {
   CatalogNotFoundError,
   GlobalCatalogLinkError,
   type StoreProductInput,
-  type StoreProductOverrideInput,
+  type UpdateStoreProductInput,
+  type ArchiveStoreProductInput,
   type AddStoreSkuInput,
   type UpdateStoreSkuInput,
   type ArchiveStoreSkuInput,
@@ -90,6 +92,17 @@ export async function createStoreProduct(
           sellingPriceMinor: BigInt(input.sku.sellingPriceMinor),
         },
       });
+      await tx.storeSkuConversionVersion.create({
+        data: {
+          storeId: input.storeId,
+          storeSkuId: sku.id,
+          version: 1,
+          quantityInBaseUnit: input.sku.quantityInBaseUnit,
+          effectiveFrom: sku.createdAt,
+          reason: "Initial conversion for store product creation",
+          actorId: context.actor.id,
+        },
+      });
       const barcode = input.sku.barcode ? normalizeBarcode(input.sku.barcode) : "";
       if (barcode) {
         await tx.storeBarcode.create({ data: { storeId: input.storeId, storeSkuId: sku.id, barcode } });
@@ -117,42 +130,189 @@ export async function createStoreProduct(
   });
 }
 
-export async function updateStoreProductOverride(
+export async function updateStoreProduct(
   db: PrismaClient,
   context: StoreContext,
   storeId: string,
   productId: string,
-  rawInput: StoreProductOverrideInput,
+  rawInput: UpdateStoreProductInput,
 ) {
-  const input = assertStoreProductOverride(context, storeId, rawInput);
+  const input = assertUpdateStoreProduct(context, storeId, rawInput);
+  const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
 
   return db.$transaction(async (tx) => {
-    const before = await tx.storeProduct.findUnique({ where: { storeId_id: { storeId, id: productId } } });
-    if (!before) throw new Error("Store product does not exist.");
-
-    const after = await tx.storeProduct.update({
+    const before = await tx.storeProduct.findUnique({
       where: { storeId_id: { storeId, id: productId } },
-      data: {
-        displayName: input.displayName,
-        shelfLocation: input.shelfLocation,
-        overrides: input.overrides as Prisma.InputJsonValue | undefined,
+      select: {
+        id: true,
+        storeId: true,
+        registeredProductId: true,
+        displayName: true,
+        shelfLocation: true,
+        minimumStockBase: true,
+        overrides: true,
+        isActive: true,
+        updatedAt: true,
       },
     });
+    if (!before || before.storeId !== context.storeId) {
+      throw new CatalogNotFoundError("Store product not found.");
+    }
+    if (!before.isActive) throw new CatalogConflictError("Archived products cannot be updated.");
+
+    const displayNameChanged = input.displayName !== undefined && input.displayName !== before.displayName;
+    const shelfLocationChanged = input.shelfLocation !== undefined && input.shelfLocation !== before.shelfLocation;
+    const minimumStockChanged = input.minimumStockBase !== undefined
+      && !new Prisma.Decimal(input.minimumStockBase).equals(before.minimumStockBase);
+    const currentOverrides = before.overrides && typeof before.overrides === "object" && !Array.isArray(before.overrides)
+      ? before.overrides as Record<string, unknown>
+      : {};
+    const nextOverrides = input.overrides !== undefined
+      ? { ...input.overrides }
+      : { ...currentOverrides };
+    if (displayNameChanged && before.registeredProductId) nextOverrides.displayName = input.displayName;
+    const shouldWriteOverrides = input.overrides !== undefined || (displayNameChanged && Boolean(before.registeredProductId));
+    const overridesChanged = shouldWriteOverrides
+      && JSON.stringify(nextOverrides) !== JSON.stringify(before.overrides);
+    if (!displayNameChanged && !shelfLocationChanged && !minimumStockChanged && !overridesChanged) {
+      throw new CatalogConflictError("Store product values are unchanged.");
+    }
+
+    const updateResult = await tx.storeProduct.updateMany({
+      where: { storeId, id: productId, isActive: true, updatedAt: expectedUpdatedAt },
+      data: {
+        ...(displayNameChanged ? { displayName: input.displayName } : {}),
+        ...(shelfLocationChanged ? { shelfLocation: input.shelfLocation } : {}),
+        ...(minimumStockChanged ? { minimumStockBase: input.minimumStockBase } : {}),
+        ...(overridesChanged ? { overrides: nextOverrides as Prisma.InputJsonValue } : {}),
+      },
+    });
+    if (updateResult.count !== 1) {
+      throw new CatalogConflictError("Product changed in another session. Refresh before retrying.");
+    }
+
+    const after = await tx.storeProduct.findUnique({
+      where: { storeId_id: { storeId, id: productId } },
+      select: {
+        id: true,
+        storeId: true,
+        registeredProductId: true,
+        displayName: true,
+        shelfLocation: true,
+        minimumStockBase: true,
+        overrides: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+    if (!after) throw new CatalogNotFoundError("Updated store product not found.");
 
     await tx.auditLog.create({
       data: {
         storeId,
         actorId: context.actor.id,
-        action: "CATALOG_STORE_PRODUCT_OVERRIDE_UPDATED",
+        action: "CATALOG_STORE_PRODUCT_UPDATED",
         targetType: "StoreProduct",
         targetId: productId,
-        reason: "Updated explicit store catalog override",
-        before: { displayName: before.displayName, shelfLocation: before.shelfLocation, overrides: before.overrides as Prisma.InputJsonValue | undefined },
-        after: { displayName: after.displayName, shelfLocation: after.shelfLocation, overrides: after.overrides as Prisma.InputJsonValue | undefined },
+        reason: input.reason,
+        before: {
+          displayName: before.displayName,
+          shelfLocation: before.shelfLocation,
+          minimumStockBase: String(before.minimumStockBase),
+          overrides: before.overrides as Prisma.InputJsonValue | undefined,
+          updatedAt: before.updatedAt.toISOString(),
+        },
+        after: {
+          displayName: after.displayName,
+          shelfLocation: after.shelfLocation,
+          minimumStockBase: String(after.minimumStockBase),
+          overrides: after.overrides as Prisma.InputJsonValue | undefined,
+          updatedAt: after.updatedAt.toISOString(),
+        },
       },
     });
 
-    return after;
+    return {
+      ...after,
+      minimumStockBase: String(after.minimumStockBase),
+      updatedAt: after.updatedAt.toISOString(),
+    };
+  });
+}
+
+export async function archiveStoreProduct(
+  db: PrismaClient,
+  context: StoreContext,
+  storeId: string,
+  productId: string,
+  rawInput: ArchiveStoreProductInput,
+) {
+  const input = assertArchiveStoreProduct(context, storeId, rawInput);
+  const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+
+  return db.$transaction(async (tx) => {
+    const before = await tx.storeProduct.findUnique({
+      where: { storeId_id: { storeId, id: productId } },
+      select: {
+        id: true,
+        storeId: true,
+        displayName: true,
+        isActive: true,
+        archivedAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!before || before.storeId !== context.storeId) {
+      throw new CatalogNotFoundError("Store product not found.");
+    }
+    if (!before.isActive) throw new CatalogConflictError("Store product is already archived.");
+
+    const archivedAt = new Date();
+    const archiveResult = await tx.storeProduct.updateMany({
+      where: { storeId, id: productId, isActive: true, updatedAt: expectedUpdatedAt },
+      data: { isActive: false, archivedAt },
+    });
+    if (archiveResult.count !== 1) {
+      throw new CatalogConflictError("Product changed in another session. Refresh before retrying.");
+    }
+
+    const after = await tx.storeProduct.findUnique({
+      where: { storeId_id: { storeId, id: productId } },
+      select: {
+        id: true,
+        storeId: true,
+        displayName: true,
+        isActive: true,
+        archivedAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!after) throw new CatalogNotFoundError("Archived store product not found.");
+
+    await tx.auditLog.create({
+      data: {
+        storeId,
+        actorId: context.actor.id,
+        action: "CATALOG_STORE_PRODUCT_ARCHIVED",
+        targetType: "StoreProduct",
+        targetId: productId,
+        reason: input.reason,
+        before: {
+          displayName: before.displayName,
+          isActive: before.isActive,
+          archivedAt: before.archivedAt,
+          updatedAt: before.updatedAt.toISOString(),
+        },
+        after: {
+          displayName: after.displayName,
+          isActive: after.isActive,
+          archivedAt: after.archivedAt,
+          updatedAt: after.updatedAt.toISOString(),
+        },
+      },
+    });
+
+    return { ...after, updatedAt: after.updatedAt.toISOString() };
   });
 }
 
@@ -208,7 +368,19 @@ export async function addStoreSku(
         quantityInBaseUnit: input.quantityInBaseUnit,
         sellingPriceMinor: BigInt(input.sellingPriceMinor),
       },
-      select: { id: true, storeId: true, storeProductId: true, code: true, productPackageId: true, unitId: true, quantityInBaseUnit: true, sellingPriceMinor: true },
+      select: { id: true, storeId: true, storeProductId: true, code: true, productPackageId: true, unitId: true, quantityInBaseUnit: true, currentConversionVersion: true, sellingPriceMinor: true, createdAt: true },
+    });
+
+    await tx.storeSkuConversionVersion.create({
+      data: {
+        storeId,
+        storeSkuId: sku.id,
+        version: sku.currentConversionVersion,
+        quantityInBaseUnit: sku.quantityInBaseUnit,
+        effectiveFrom: sku.createdAt,
+        reason: "Initial conversion for added SKU",
+        actorId: context.actor.id,
+      },
     });
 
     if (normalizedBarcode) {
@@ -230,13 +402,14 @@ export async function addStoreSku(
           unitId: sku.unitId,
           productPackageId: sku.productPackageId,
           quantityInBaseUnit: String(sku.quantityInBaseUnit),
+          currentConversionVersion: sku.currentConversionVersion,
           sellingPriceMinor: sku.sellingPriceMinor.toString(),
           barcode: normalizedBarcode || null,
         },
       },
     });
 
-    return { ...sku, quantityInBaseUnit: String(sku.quantityInBaseUnit), sellingPriceMinor: sku.sellingPriceMinor.toString(), barcode: normalizedBarcode || null };
+    return { ...sku, quantityInBaseUnit: String(sku.quantityInBaseUnit), sellingPriceMinor: sku.sellingPriceMinor.toString(), createdAt: sku.createdAt.toISOString(), barcode: normalizedBarcode || null };
   });
 }
 
@@ -312,6 +485,7 @@ export async function updateStoreSku(
         code: true,
         isActive: true,
         quantityInBaseUnit: true,
+        currentConversionVersion: true,
         sellingPriceMinor: true,
         updatedAt: true,
       },
@@ -329,6 +503,8 @@ export async function updateStoreSku(
       throw new CatalogConflictError("Price and conversion are unchanged.");
     }
 
+    const changedAt = new Date();
+    const nextConversionVersion = before.currentConversionVersion + (quantityChanged ? 1 : 0);
     const updateResult = await tx.storeSku.updateMany({
       where: {
         storeId,
@@ -339,11 +515,38 @@ export async function updateStoreSku(
       },
       data: {
         ...(quantityChanged ? { quantityInBaseUnit: input.quantityInBaseUnit } : {}),
+        ...(quantityChanged ? { currentConversionVersion: nextConversionVersion } : {}),
         ...(priceChanged ? { sellingPriceMinor: BigInt(input.sellingPriceMinor!) } : {}),
       },
     });
     if (updateResult.count !== 1) {
       throw new CatalogConflictError("SKU changed in another session. Refresh before retrying.");
+    }
+
+    if (quantityChanged) {
+      const closedVersion = await tx.storeSkuConversionVersion.updateMany({
+        where: {
+          storeId,
+          storeSkuId: skuId,
+          version: before.currentConversionVersion,
+          effectiveTo: null,
+        },
+        data: { effectiveTo: changedAt },
+      });
+      if (closedVersion.count !== 1) {
+        throw new CatalogConflictError("Current SKU conversion history is inconsistent.");
+      }
+      await tx.storeSkuConversionVersion.create({
+        data: {
+          storeId,
+          storeSkuId: skuId,
+          version: nextConversionVersion,
+          quantityInBaseUnit: input.quantityInBaseUnit!,
+          effectiveFrom: changedAt,
+          reason: input.reason,
+          actorId: context.actor.id,
+        },
+      });
     }
 
     const after = await tx.storeSku.findUnique({
@@ -354,6 +557,7 @@ export async function updateStoreSku(
         storeProductId: true,
         code: true,
         quantityInBaseUnit: true,
+        currentConversionVersion: true,
         sellingPriceMinor: true,
         updatedAt: true,
       },
@@ -371,12 +575,14 @@ export async function updateStoreSku(
         before: {
           code: before.code,
           quantityInBaseUnit: String(before.quantityInBaseUnit),
+          currentConversionVersion: before.currentConversionVersion,
           sellingPriceMinor: before.sellingPriceMinor.toString(),
           updatedAt: before.updatedAt.toISOString(),
         },
         after: {
           code: after.code,
           quantityInBaseUnit: String(after.quantityInBaseUnit),
+          currentConversionVersion: after.currentConversionVersion,
           sellingPriceMinor: after.sellingPriceMinor.toString(),
           updatedAt: after.updatedAt.toISOString(),
         },

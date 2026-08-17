@@ -811,3 +811,26 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve: transaction lines in E3 must snapshot the conversion actually used;
   do not let later SKU edits rewrite history. Keep `expectedUpdatedAt`, reason,
   tenant ownership and server permission checks on sensitive SKU mutations.
+## 2026-08-18 — E1.2 catalog lifecycle completed
+
+- Status: completed store-product update/archive and immutable SKU conversion
+  history; E2 inventory ADR is now the next product task.
+- Decisions: product deletion is a soft archive; mutations require reason plus
+  optimistic `expectedUpdatedAt`; shared catalog records remain read-only;
+  conversion edits create versions while price-only edits do not.
+- Changed: catalog API/application/repository/UI, Prisma schema and migration
+  `20260817175000_store_sku_conversion_history`, seed/fixture/browser runner,
+  ADR-005 and product/performance documentation.
+- Verification: 75 tests in 17 files, typecheck, lint and production build pass;
+  six migrations apply
+  from empty PostgreSQL; populated upgrade backfills version 1; seed is
+  idempotent; 1k/5k fixture loads and cleans; PostgreSQL constraints reject
+  duplicate-current, non-positive and cross-tenant rows. Chromium and Firefox
+  each pass 16/16 lifecycle criteria; see `docs/performance/e1.2-local.md`.
+- Deployment gap: the migration was verified only on disposable databases and
+  has not been applied to shared/production. Do not promote `production` until
+  its database migration step is confirmed. Deployed/provider performance
+  telemetry remains an explicit exception.
+- Preserve next: E3/E5 must add document-state archive guards and snapshot exact
+  conversion/cost on transaction lines; never rewrite conversion history or
+  treat a store override as a shared catalog correction.

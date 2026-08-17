@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { catalogOverviewQueryOptions, catalogQueryKeys, createCatalogQueryKeys, invalidateCatalogAfterSkuMutation, resetTenantCatalogCache, storeProductDetailQueryKey, storeProductsQueryKey } from "./catalog-query";
+import { catalogOverviewQueryOptions, catalogQueryKeys, createCatalogQueryKeys, invalidateCatalogAfterProductMutation, invalidateCatalogAfterSkuMutation, resetTenantCatalogCache, storeProductDetailQueryKey, storeProductsQueryKey } from "./catalog-query";
 
 describe("catalog query keys", () => {
   it("keeps list/detail/overview keys under one tenant-sensitive namespace", () => {
@@ -28,6 +28,21 @@ describe("catalog query keys", () => {
       ["store", "store-a", "catalog", "product", "product-1"],
       ["store", "store-a", "catalog", "products"],
       ["store", "store-a", "catalog", "overview"],
+    ]);
+    resolvers.forEach((resolve) => resolve());
+    await pending;
+  });
+
+  it("starts product mutation invalidations together instead of serially", async () => {
+    const resolvers: Array<() => void> = [];
+    const invalidateQueries = vi.fn((_: { queryKey: readonly unknown[] }) => new Promise<void>((resolve) => resolvers.push(resolve)));
+    const pending = invalidateCatalogAfterProductMutation({ invalidateQueries }, "product-1", "store-a");
+
+    expect(invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(invalidateQueries.mock.calls.map(([input]) => input)).toEqual([
+      { queryKey: ["store", "store-a", "catalog", "product", "product-1"], refetchType: "active" },
+      { queryKey: ["store", "store-a", "catalog", "products"], refetchType: "active" },
+      { queryKey: ["store", "store-a", "catalog", "overview"], refetchType: "active" },
     ]);
     resolvers.forEach((resolve) => resolve());
     await pending;

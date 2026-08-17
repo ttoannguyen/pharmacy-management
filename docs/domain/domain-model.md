@@ -113,6 +113,12 @@ StoreSKU đại diện cho một cấp bán/mua thực tế, ví dụ hộp, v�
 - Barcode nhà sản xuất thường gắn cấp hộp; barcode nội bộ có thể dùng cho cấp vỉ.
 - Không tự suy diễn quy đổi chỉ từ chuỗi mô tả nếu chưa được xác nhận.
 
+`StoreSku.quantityInBaseUnit` là projection hiện tại để lookup nhanh; lịch sử nằm
+trong `StoreSkuConversionVersion` với version tăng dần và khoảng hiệu lực. Tạo SKU
+phải tạo version 1. Đổi conversion đóng version hiện tại và tạo version mới trong
+cùng transaction. Giao dịch kho/bán sau này snapshot conversion và số version đã
+dùng, nên thay đổi master không viết lại lịch sử.
+
 ## InventoryBatch
 
 Đại diện tồn kho có cùng:
