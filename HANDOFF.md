@@ -655,3 +655,27 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve: promote verified revisions `main -> production`; never point Preview
   deployments at production data or expose database/auth secrets through
   `NEXT_PUBLIC_*`.
+
+## 2026-08-17 — System and store administration separation
+
+- Status: code-level implementation complete. `OWNER` remains the administrator
+  of an explicit store membership; `User.systemRole = SYSTEM_ADMIN` owns the
+  global control plane. One account may hold both scopes independently.
+- Added `/admin`, global overview authorization/repository/UI, login and home
+  redirects, and a dashboard link for system administrators. A system admin with
+  no membership can use `/admin` but cannot silently enter a store workspace.
+- Migration `20260817111500_system_role_separation` adds `users.system_role`,
+  removes `SYSTEM_ADMIN` from `MembershipRole`, and safely maps a legacy
+  assignment to `SYSTEM_ADMIN | OWNER`.
+- First-admin provisioning is explicit through `npm run db:bootstrap-admin` with
+  server-only email/password/display-name inputs, `DIRECT_URL`, Argon2id and an
+  audit record. No real administrator credentials were created or committed.
+- Verification: 53 tests, typecheck, lint and production build pass. All five
+  migrations applied on disposable PostgreSQL 16, and a populated legacy-role
+  migration check returned `SYSTEM_ADMIN|OWNER`; test containers were removed.
+- Release gap: migration is not applied to production and `production` has not
+  been promoted. Obtain the intended first-admin email, supply credentials out
+  of band, deploy the migration, bootstrap once, then promote the verified main
+  revision.
+- Preserve: never equate platform administration with implicit cross-tenant
+  access; future support access needs store scope, reason, expiry and audit.

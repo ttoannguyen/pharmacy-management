@@ -23,6 +23,7 @@ const trustedContextSelect = {
       displayName: true,
       isActive: true,
       emailVerifiedAt: true,
+      systemRole: true,
       memberships: {
         where: { isActive: true, store: { isActive: true } },
         select: {

@@ -22,6 +22,11 @@ preference; every request re-checks the membership and store status in Prisma.
 - Membership, active store and role resolution belong to P1.2.
 - Role authorization uses explicit permissions; a matching role is not enough
   without the active store context and resource tenant check.
+- `User.systemRole = SYSTEM_ADMIN` owns platform control-plane permissions;
+  `Membership.role = OWNER` owns store administration. Neither scope silently
+  implies the other.
+- System administrator bootstrap is explicit through `npm run
+  db:bootstrap-admin`, requires server-only environment values and writes audit.
 
 ## Flow
 

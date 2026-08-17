@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { SystemRole } from "@/generated/prisma/client";
+
 import { LoginForm } from "@/app/auth/login/login-form";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/modules/identity/application/session";
@@ -8,9 +10,8 @@ import { getCurrentUser } from "@/modules/identity/application/session";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  if (await getCurrentUser(prisma)) {
-    redirect("/dashboard");
-  }
+  const currentUser = await getCurrentUser(prisma);
+  if (currentUser) redirect(currentUser.systemRole === SystemRole.SYSTEM_ADMIN ? "/admin" : "/dashboard");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md items-center px-6">

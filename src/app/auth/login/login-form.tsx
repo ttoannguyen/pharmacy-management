@@ -22,7 +22,7 @@ export function LoginForm() {
       setIsSubmitting(false);
       return;
     }
-    router.replace("/dashboard");
+    router.replace(result?.data?.user?.systemRole === "SYSTEM_ADMIN" ? "/admin" : "/dashboard");
     router.refresh();
   }
 

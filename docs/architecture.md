@@ -102,6 +102,22 @@ MVP dùng shared database/shared schema với `storeId` trên dữ liệu vận 
 Nếu có nhiều chi nhánh sau này, thêm `organizationId` và `locationId`; không dùng
 `storeId` với ý nghĩa mơ hồ cho cả pháp nhân và kho vật lý.
 
+## Hai cấp quản trị
+
+```text
+User.systemRole = SYSTEM_ADMIN
+  -> control plane toàn nền tảng
+  -> user/store/global catalog/system audit
+
+Membership.role = OWNER
+  -> admin của đúng store membership
+  -> catalog local/inventory/sales/finance/store users
+```
+
+System admin không được biến thành membership giả và không tự bypass tenant.
+Muốn vận hành trong một nhà thuốc, tài khoản vẫn cần membership hoặc một flow
+support access riêng có thời hạn, lý do và audit.
+
 ## Transaction boundaries
 
 Các use case sau phải atomic:

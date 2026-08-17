@@ -1,5 +1,15 @@
 # Mô hình domain cốt lõi
 
+## Identity và phạm vi quản trị
+
+- `User.systemRole`: quyền control plane toàn nền tảng (`USER`, `SYSTEM_ADMIN`).
+- `Membership.role`: quyền vận hành trong đúng nhà thuốc (`OWNER`, `PHARMACIST`,
+  `CLINICIAN`, `INVENTORY_STAFF`, `ACCOUNTANT`).
+- `OWNER` là admin nhà thuốc; `SYSTEM_ADMIN` không phải membership version cao
+  hơn và không tự có quyền đọc dữ liệu của mọi tenant.
+- Cùng một `User` có thể có system role và nhiều store membership; việc có một
+  scope không ngầm cấp scope còn lại.
+
 ## Catalog nhiều tầng
 
 ```text

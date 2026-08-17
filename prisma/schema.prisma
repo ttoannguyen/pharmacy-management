@@ -13,6 +13,10 @@ enum MembershipRole {
   CLINICIAN
   INVENTORY_STAFF
   ACCOUNTANT
+}
+
+enum SystemRole {
+  USER
   SYSTEM_ADMIN
 }
 
@@ -47,6 +51,7 @@ model User {
   passwordHash   String?     @map("password_hash")
   emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(6)
   isActive       Boolean     @default(true) @map("is_active")
+  systemRole     SystemRole  @default(USER) @map("system_role")
   memberships    Membership[]
   sessions       AuthSession[]
   loginAttempts  AuthLoginAttempt[]
@@ -56,6 +61,7 @@ model User {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  @@index([systemRole, isActive])
   @@map("users")
 }
 

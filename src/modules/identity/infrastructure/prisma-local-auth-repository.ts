@@ -52,6 +52,7 @@ export class PrismaLocalAuthRepository {
         displayName: true,
         isActive: true,
         emailVerifiedAt: true,
+        systemRole: true,
         passwordHash: true,
       },
     });
@@ -71,6 +72,7 @@ export class PrismaLocalAuthRepository {
       displayName: user.displayName,
       isActive: user.isActive,
       emailVerifiedAt: user.emailVerifiedAt,
+      systemRole: user.systemRole,
     };
   }
 

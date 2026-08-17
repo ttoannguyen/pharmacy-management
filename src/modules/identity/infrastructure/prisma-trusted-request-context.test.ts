@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, SystemRole } from "@/generated/prisma/client";
 
 import { readTrustedRequestContext } from "./prisma-trusted-request-context";
 
@@ -21,6 +21,7 @@ const session = {
     displayName: "Owner",
     isActive: true,
     emailVerifiedAt: null,
+    systemRole: SystemRole.USER,
     memberships: [{
       userId,
       storeId,
@@ -41,6 +42,7 @@ describe("readTrustedRequestContext", () => {
       select: expect.objectContaining({ user: expect.any(Object) }),
     }));
     expect(result?.actor.id).toBe(userId);
+    expect(result?.actor.systemRole).toBe(SystemRole.USER);
     expect(result?.memberships[0]?.storeId).toBe(storeId);
   });
 

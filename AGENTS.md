@@ -46,6 +46,11 @@ For architecture changes, read all files in `docs/adr/` relevant to the change.
 - Login failures must use the persistent rate-limit policy; do not return whether
   an email exists.
 - Global catalog records are read-only to ordinary store users.
+- `OWNER` is the administrator of one store membership; `SYSTEM_ADMIN` is a
+  separate `User.systemRole` for the platform control plane.
+- Never model `SYSTEM_ADMIN` as a store membership or silently grant it tenant
+  operational access. Cross-store support access requires an explicit audited
+  mechanism.
 - Role checks alone are insufficient for sensitive operations; also validate the
   resource's store ownership and operation state.
 

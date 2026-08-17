@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { SystemRole } from "@/generated/prisma/client";
+
 import { UnauthorizedError, requireLocalUser } from "./auth-context";
 
 const activeUser = {
@@ -8,6 +10,7 @@ const activeUser = {
   displayName: "Staff",
   isActive: true,
   emailVerifiedAt: null,
+  systemRole: SystemRole.USER,
 };
 
 describe("requireLocalUser", () => {

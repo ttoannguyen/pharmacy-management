@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, SystemRole } from "@/generated/prisma/client";
 import { ForbiddenError } from "@/modules/identity/application/auth-errors";
 import type { StoreContext } from "@/modules/identity/application/store-context";
 
@@ -12,7 +12,7 @@ const productA = "00000000-0000-4000-8000-000000000020";
 const unit = "00000000-0000-4000-8000-000000000001";
 
 const ownerContext: StoreContext = {
-  actor: { id: "user-1", email: "owner@example.com", displayName: "Owner", isActive: true, emailVerifiedAt: null },
+  actor: { id: "user-1", email: "owner@example.com", displayName: "Owner", isActive: true, emailVerifiedAt: null, systemRole: SystemRole.USER },
   store: { id: storeA, code: "A", name: "Store A", timezone: "Asia/Bangkok", isActive: true },
   storeId: storeA,
   role: MembershipRole.OWNER,

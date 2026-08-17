@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, SystemRole } from "@/generated/prisma/client";
 
 import {
   ForbiddenError,
@@ -15,6 +15,7 @@ const actor = {
   displayName: "Owner",
   isActive: true,
   emailVerifiedAt: null,
+  systemRole: SystemRole.USER,
 };
 
 function membership(
@@ -65,5 +66,12 @@ describe("resolveStoreContext", () => {
     const inactive = membership("store-a", "A");
     inactive.store.isActive = false;
     expect(() => resolveStoreContext({ actor, memberships: [inactive] })).toThrow(ForbiddenError);
+  });
+
+  it("does not turn global system administration into an implicit store membership", () => {
+    expect(() => resolveStoreContext({
+      actor: { ...actor, systemRole: SystemRole.SYSTEM_ADMIN },
+      memberships: [],
+    })).toThrow(ForbiddenError);
   });
 });

@@ -7,7 +7,7 @@ import { BarChart3, ClipboardList, LayoutDashboard, LogOut, Package, Pill, Setti
 
 import { DashboardWarmup } from "./dashboard-warmup";
 
-type User = { displayName: string | null; email: string };
+type User = { displayName: string | null; email: string; systemRole: string };
 type ActiveStore = { store: { id: string; code: string; name: string }; role: string } | null;
 
 const navigation = [
@@ -21,9 +21,9 @@ const navigation = [
 const roleLabels: Record<string, string> = {
   OWNER: "Chủ nhà thuốc",
   PHARMACIST: "Dược sĩ",
+  CLINICIAN: "Người khám",
   INVENTORY_STAFF: "Nhân viên kho",
   ACCOUNTANT: "Kế toán",
-  ADMIN: "Quản trị viên",
 };
 
 export function DashboardShell({ children, user, activeStore }: { children: React.ReactNode; user: User; activeStore: ActiveStore }) {
@@ -58,6 +58,7 @@ export function DashboardShell({ children, user, activeStore }: { children: Reac
           <p className="sidebar-label sidebar-label-spaced">PHÂN TÍCH</p>
           <span aria-disabled="true" className="sidebar-link is-disabled" title="Báo cáo cần dữ liệu bán hàng"><span className="sidebar-icon"><BarChart3 size={17} strokeWidth={1.8} /></span><span>Báo cáo</span><small>Sắp có</small></span>
           <p className="sidebar-label sidebar-label-spaced">HỆ THỐNG</p>
+          {user.systemRole === "SYSTEM_ADMIN" ? <Link className="sidebar-link" href="/admin"><span className="sidebar-icon"><Settings size={17} strokeWidth={1.8} /></span><span>System Admin</span></Link> : null}
           <span aria-disabled="true" className="sidebar-link is-disabled"><span className="sidebar-icon"><Settings size={17} strokeWidth={1.8} /></span><span>Cài đặt</span><small>Sắp có</small></span>
         </nav>
         <div className="sidebar-bottom">

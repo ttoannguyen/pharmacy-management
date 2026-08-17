@@ -6,7 +6,7 @@ export { UnauthorizedError } from "@/modules/identity/application/auth-errors";
 
 export type LocalUser = Pick<
   User,
-  "id" | "email" | "displayName" | "isActive" | "emailVerifiedAt"
+  "id" | "email" | "displayName" | "isActive" | "emailVerifiedAt" | "systemRole"
 >;
 
 export interface CurrentUserReader {

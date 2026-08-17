@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { SystemRole } from "@/generated/prisma/client";
 import { UnauthorizedError } from "@/modules/identity/application/auth-errors";
 import { getCurrentWorkspaceState } from "@/modules/identity/infrastructure/current-store-context";
 
@@ -18,6 +19,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   if (!workspace.actor) redirect("/auth/login");
+  if (workspace.actor.systemRole === SystemRole.SYSTEM_ADMIN && workspace.memberships.length === 0) redirect("/admin");
 
   const activeStore = workspace.activeStore
     ? { store: workspace.activeStore.store, role: workspace.activeStore.role }

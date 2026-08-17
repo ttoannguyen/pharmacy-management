@@ -23,12 +23,15 @@ Danh mục thuốc
 
 ## Người dùng
 
-- Chủ nhà thuốc: toàn quyền cấu hình và xem báo cáo.
+- Chủ nhà thuốc (`OWNER`): admin trong các nhà thuốc mà họ có membership, toàn
+  quyền cấu hình và xem báo cáo của đúng tenant đó.
 - Dược sĩ/người bán: bán hàng, trả hàng và tư vấn.
 - Nhân viên kho: nhập hàng, kiểm kho và xử lý lô.
 - Kế toán: doanh thu, chi phí, công nợ và đối soát.
 - Người khám: hồ sơ khám và kê đơn ở giai đoạn sau.
-- Quản trị hệ thống: tài khoản, phân quyền và audit log.
+- Quản trị hệ thống (`User.systemRole = SYSTEM_ADMIN`): control plane toàn nền
+  tảng, tài khoản, nhà thuốc, danh mục chung và audit hệ thống; không phải một
+  `MembershipRole` và không tự bypass tenant khi vận hành nhà thuốc.
 
 ## Phạm vi MVP
 

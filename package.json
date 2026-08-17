@@ -19,6 +19,7 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:bootstrap-admin": "tsx scripts/admin/bootstrap-system-admin.ts",
     "db:studio": "prisma studio",
     "perf:benchmark": "node scripts/performance/api-benchmark.mjs",
     "perf:fixture": "tsx scripts/performance/synthetic-catalog-fixture.ts",

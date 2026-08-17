@@ -1,9 +1,10 @@
 import { cache } from "react";
-
-import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
+
+import { SystemRole } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 import { touchSessionBestEffort } from "@/modules/identity/application/session";
-import { StoreSelectionRequiredError } from "@/modules/identity/application/auth-errors";
+import { ForbiddenError, StoreSelectionRequiredError } from "@/modules/identity/application/auth-errors";
 import { resolveStoreContext } from "@/modules/identity/application/store-context";
 import { getSelectedStoreId } from "./active-store-cookie";
 import { getTrustedRequestContext } from "./prisma-trusted-request-context";
@@ -51,7 +52,10 @@ export const getCurrentWorkspaceState = cache(async () => {
   try {
     activeStore = resolveStoreContext(input);
   } catch (error) {
-    if (!(error instanceof StoreSelectionRequiredError)) throw error;
+    const systemAdminWithoutMembership = error instanceof ForbiddenError
+      && input.actor?.systemRole === SystemRole.SYSTEM_ADMIN
+      && input.memberships.length === 0;
+    if (!(error instanceof StoreSelectionRequiredError) && !systemAdminWithoutMembership) throw error;
   }
   return {
     ...input,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, SystemRole } from "@/generated/prisma/client";
 import { ForbiddenError } from "@/modules/identity/application/auth-errors";
 import type { StoreContext } from "@/modules/identity/application/store-context";
 
@@ -12,7 +12,7 @@ import {
 } from "./store-product-service";
 
 const context: StoreContext = {
-  actor: { id: "user-1", email: "owner@example.com", displayName: null, isActive: true, emailVerifiedAt: null },
+  actor: { id: "user-1", email: "owner@example.com", displayName: null, isActive: true, emailVerifiedAt: null, systemRole: SystemRole.USER },
   store: { id: "00000000-0000-4000-8000-000000000010", code: "A", name: "A", timezone: "Asia/Bangkok", isActive: true },
   storeId: "00000000-0000-4000-8000-000000000010",
   role: MembershipRole.OWNER,

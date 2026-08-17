@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SystemRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/modules/identity/application/session";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const currentUser = await getCurrentUser(prisma);
+  const workspaceHref = currentUser?.systemRole === SystemRole.SYSTEM_ADMIN ? "/admin" : "/dashboard";
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-5 py-10 sm:px-8">
@@ -21,8 +23,8 @@ export default async function HomePage() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <span className="text-sm font-bold tracking-tight">Pharmacy Management</span>
           {currentUser ? (
-            <Link className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)]" href="/dashboard">
-              Vào dashboard
+            <Link className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)]" href={workspaceHref}>
+              {currentUser.systemRole === SystemRole.SYSTEM_ADMIN ? "Vào System Admin" : "Vào dashboard"}
             </Link>
           ) : (
             <Link className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)]" href="/auth/login">
@@ -53,7 +55,7 @@ export default async function HomePage() {
           </article>
         ))}
       </section>
-      <Link className="mt-7 inline-block rounded-lg bg-[var(--primary)] px-5 py-3 font-semibold text-white" href={currentUser ? "/dashboard" : "/auth/login"}>
+      <Link className="mt-7 inline-block rounded-lg bg-[var(--primary)] px-5 py-3 font-semibold text-white" href={currentUser ? workspaceHref : "/auth/login"}>
         {currentUser ? "Mở không gian làm việc" : "Đăng nhập hệ thống"}
       </Link>
       {currentUser ? <p className="mt-3 text-sm text-[var(--muted)]">Xin chào {currentUser.displayName}.</p> : null}

@@ -65,6 +65,11 @@ The fast quality job runs for pull requests, `main` and `production`. The heavie
 Chromium/Firefox evidence job runs only for `production` or a manual workflow
 dispatch, rather than on every development push.
 
+After the system-role migration is deployed, bootstrap the first platform admin
+once with server-only `SYSTEM_ADMIN_EMAIL`, `SYSTEM_ADMIN_PASSWORD` and optional
+`SYSTEM_ADMIN_DISPLAY_NAME`, then run `npm run db:bootstrap-admin`. The command
+uses `DIRECT_URL`, stores an Argon2id hash and writes a system audit record.
+
 Breaking schema changes must use an expand/migrate/contract sequence so the old
 and new application revisions can overlap safely during rollout.
 

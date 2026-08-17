@@ -120,6 +120,7 @@ export async function getCurrentUser(db: Pick<PrismaClient, "authSession">): Pro
           displayName: true,
           isActive: true,
           emailVerifiedAt: true,
+          systemRole: true,
         },
       },
     },

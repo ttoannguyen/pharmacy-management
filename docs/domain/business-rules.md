@@ -93,6 +93,14 @@ backend và database không được vi phạm chúng.
   catalog phải có audit.
 - **BR-SEC-006:** Audit record không được chứa token, password hoặc dữ liệu nhạy
   cảm không cần thiết.
+- **BR-SEC-007:** `OWNER` là admin của một nhà thuốc; `SYSTEM_ADMIN` là quyền toàn
+  hệ thống trên User và không được lưu trong Membership.
+- **BR-SEC-008:** System admin không tự bypass store scope. Mọi support access vào
+  dữ liệu tenant phải rõ store, có lý do, thời hạn và audit.
+- **BR-SEC-009:** Cấp hoặc thu hồi system role phải chạy server-side, audit trước/
+  sau và không tin role do client gửi.
+- **BR-SEC-010:** Một User có thể vừa là `SYSTEM_ADMIN` vừa là `OWNER`, nhưng mọi
+  use case phải kiểm tra đúng system permission hoặc store permission tương ứng.
 
 ## BR-IMP — Import và đồng bộ
 
