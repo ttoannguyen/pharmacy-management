@@ -73,17 +73,17 @@ lập nếu repository workflow có commit/PR.
 | PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | One aggregate + recent-products query implemented; controlled p95 gate pending |
 | PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Key factory/cache reset đã có; controlled refetch trace còn pending |
 | PERF-3.2 | [x] | Provider/client boundary + route bundle gate | PERF-3.1 | Provider, bundle report và Chromium/Firefox Web Vitals CI evidence đã có; WebKit vẫn là release follow-up |
-| PERF-3.3 | [ ] | Cache consistency foundation | PERF-3.1 implementation | Tenant namespace + focus/reconnect + mutation map có tests |
-| PERF-3.4 | [ ] | Cached dashboard + progressive warmup | PERF-3.3 | Return navigation dùng cache; DB changes hội tụ <= 60s |
+| PERF-3.3 | [x] | Cache consistency foundation | PERF-3.1 implementation | Tenant namespace + focus/reconnect + mutation map có tests; 49 tests/typecheck/lint/build pass |
+| PERF-3.4 | [~] | Cached dashboard + progressive warmup | PERF-3.3 | Dashboard query, polling và idle warmup đã có; return-navigation browser trace còn pending |
 | PERF-4.1 | [!] | Same-region deploy/pool/load verification | PERF-2.2, PERF-2.3 | Disposable local same-region gate pass; production runtime/database region mismatch vẫn là exception |
 | PERF-L.1 | [~] | Legacy cleanup contract | PERF-4.1 | Auth/migration policy, CI chain và browser matrix đã có; Chromium/Firefox pass, WebKit được defer khỏi MVP |
 
 ### Task đang được phép bắt đầu
 
-**PERF-3.3 Cache consistency foundation** là task local tiếp theo. PERF-3.1 đã có
-query-key factory, invalidation tests và browser mutation traces; phần evidence
-còn thiếu của update-SKU không chặn contract cache nền. Sau PERF-3.3 thực hiện
-PERF-3.4 cached dashboard/progressive warmup. Các controlled rerun còn lại của
+**PERF-3.4 Cached dashboard + progressive warmup** là task local tiếp theo. PERF-3.3
+đã hoàn tất tenant namespace, refresh policy và mutation mapping; PERF-3.4 đã có
+runtime nền tảng nhưng cần browser trace return-navigation và request count để
+đóng. Các controlled rerun còn lại của
 PERF-0/1/2 và production-region gate vẫn giữ trạng thái partial/exception, không
 được tự nâng thành complete bằng số đo khác profile.
 
@@ -489,30 +489,32 @@ the TanStack Query boundary needed by catalog interactions and hydration.
 
 ### PERF-3.3 — Cache consistency foundation
 
-- [ ] Đọc và tuân thủ `docs/product/cache-consistency-strategy.md`.
-- [ ] Bật focus/reconnect refresh cho operational queries, giữ background polling
+- [x] Đọc và tuân thủ `docs/product/cache-consistency-strategy.md`.
+- [x] Bật focus/reconnect refresh cho operational queries, giữ background polling
   tắt theo mặc định.
-- [ ] Thêm tenant namespace cho operational query keys hoặc provider remount có
+- [x] Thêm tenant namespace cho operational query keys hoặc provider remount có
   contract tương đương.
-- [ ] Audit mutation -> affected query keys và sửa invalidation thiếu.
-- [ ] Test store switch/logout không giữ hoặc flash cache tenant trước.
+- [x] Audit mutation -> affected query keys và sửa invalidation thiếu.
+- [x] Test store switch/logout không giữ hoặc flash cache tenant trước.
 
 ### PERF-3.4 — Cached dashboard và progressive warmup
 
-- [ ] Dashboard overview dùng TanStack Query/API thay vì server repository trên
+- [x] Dashboard overview dùng TanStack Query/API thay vì server repository trên
   mọi return navigation.
-- [ ] Giữ first visit loading/error/retry và không tạo double fetch.
-- [ ] Idle-warm overview/catalog hot set có save-data/visibility/concurrency guard.
-- [ ] Poll overview tối đa mỗi 60 giây khi visible; focus/reconnect refetch khi stale.
+- [x] Giữ first visit loading/error/retry và không tạo double fetch.
+- [x] Idle-warm overview/catalog hot set có save-data/visibility/concurrency guard.
+- [x] Poll overview tối đa mỗi 60 giây khi visible; focus/reconnect refetch khi stale.
 - [ ] Browser trace chứng minh Dashboard -> Catalog -> Dashboard dùng cache trong
   staleTime và mutation vẫn làm overview hội tụ.
-- [ ] Không triển khai SSE/outbox trong task này; chỉ ghi evidence nếu polling
+- [x] Không triển khai SSE/outbox trong task này; chỉ ghi evidence nếu polling
   không đủ requirement.
 
 ### Server/client boundary
 
-- Giữ server-first initial read model cho page chính; không gọi HTTP nội bộ từ
-  Server Component.
+- Giữ server-first read model cho catalog page/detail khi đã có initial DTO; riêng
+  dashboard overview dùng client query/API để cache return-navigation và tránh
+  gọi repository mỗi lần route dynamic được render.
+- Không gọi HTTP nội bộ từ Server Component.
 - Cân nhắc chuyển `QueryClientProvider` từ root layout vào authenticated app shell
   để login/home không tải TanStack Query khi không dùng.
 - Chỉ client hóa component cần tương tác; shell/read-only content giữ server-side.

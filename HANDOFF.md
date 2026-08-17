@@ -610,3 +610,25 @@ This file is append-only and records meaningful project changes for continuity.
   and progressive warmup.
 - Preserve: never persist or optimistically commit stock, money, authorization or
   audit mutations in the client cache.
+
+## 2026-08-17 — PERF-3.3/C2 cache runtime implementation
+
+- Status: C1 cache consistency foundation complete; C2 dashboard/progressive
+  warmup implementation complete at code level, with return-navigation browser
+  evidence still pending.
+- Decisions: every catalog query key now includes a client-only active-store
+  namespace; `AppProviders` stays in the authenticated dashboard layout; focus,
+  reconnect and visible 60-second overview polling are enabled; operational
+  query cache is not persisted.
+- Changed files: `src/app/providers.tsx`, `src/app/dashboard/layout.tsx`,
+  `src/app/dashboard/dashboard-warmup.tsx`,
+  `src/app/dashboard/dashboard-overview-client.tsx`, dashboard page/shell,
+  catalog query module/list, cache strategy and performance/implementation docs.
+- Verification: `npm test` (49 passed), `npm run typecheck`, `npm run lint`, and
+  `npm run build` passed. No schema or domain mutation behavior changed.
+- Gaps/next: run `npm run perf:browser` with a disposable database and capture
+  Dashboard -> Catalog -> Dashboard request count/LCP; then decide whether C3
+  SSE/outbox is justified by a real multi-user freshness requirement.
+- Preserve: namespace is cache isolation only, never authorization; server must
+  resolve store from trusted session. Never persist or optimistically commit
+  stock, money, permission or audit mutations.

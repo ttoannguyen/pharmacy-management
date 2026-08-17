@@ -34,6 +34,9 @@ Mỗi work package chỉ hoàn thành khi:
   request-safe store selection đã triển khai.
 - [x] Catalog local có repository/use case/API, dashboard read model và UI
   responsive với server-first load cùng TanStack Query cache.
+- [~] Cache consistency C1 và dashboard C2 foundation: tenant-scoped query keys,
+  focus/reconnect refresh, targeted invalidation, overview polling và idle warmup
+  đã có; browser return-navigation evidence còn cần bổ sung.
 
 ---
 

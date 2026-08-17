@@ -20,6 +20,13 @@ latency budget.
 - Production uses a dedicated Supabase project and production domain.
 - Preview deployments must never receive production database credentials.
 
+Git branches have separate responsibilities:
+
+- `main` is the default integration branch and creates preview deployments.
+- `production` is the Vercel production branch.
+- A release is promoted by merging the verified `main` revision into
+  `production`; production fixes must be merged back into `main`.
+
 ## Secrets and connections
 
 Vercel runtime variables:
@@ -38,11 +45,13 @@ artifacts or client code.
 
 ## Release order
 
-1. Run tests, typecheck, lint, production build and empty migration-chain check.
-2. Apply committed migrations once with `prisma migrate deploy` and `DIRECT_URL`.
-3. Deploy the immutable application revision to Vercel production.
-4. Smoke-test `/api/health`, login, active-store selection and catalog APIs.
-5. Repeat the concurrency 1/5/20 performance profile in the deployed region.
+1. Run tests, typecheck, lint, production build and empty migration-chain check
+   on `main`.
+2. Promote the verified revision from `main` to `production`.
+3. Apply committed migrations once with `prisma migrate deploy` and `DIRECT_URL`.
+4. Deploy the immutable `production` revision to Vercel production.
+5. Smoke-test `/api/health`, login, active-store selection and catalog APIs.
+6. Repeat the concurrency 1/5/20 performance profile in the deployed region.
 
 Breaking schema changes must use an expand/migrate/contract sequence so the old
 and new application revisions can overlap safely during rollout.

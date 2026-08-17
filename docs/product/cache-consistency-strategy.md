@@ -3,6 +3,11 @@
 Ngày lập: 2026-08-17. Tài liệu này mô tả contract dữ liệu; checklist thực thi duy
 nhất vẫn nằm tại `docs/product/performance-change-direction.md`.
 
+Trạng thái triển khai ngày 2026-08-17: **C1 hoàn tất ở mức code/test**; **C2 đã
+triển khai nền tảng và đang chờ browser trace xác nhận return-navigation**; C3
+(freshness ngoài client/realtime) chưa mở. Cache vẫn chỉ là read optimization,
+không phải nguồn sự thật hay cơ chế ủy quyền.
+
 ## 1. Mục tiêu
 
 - Quay lại dashboard/catalog phải hiển thị dữ liệu cache ngay khi còn hợp lệ.
@@ -34,25 +39,25 @@ complete receipt bị cấm vì server không thể bảo đảm concurrency/inv
 
 - `QueryClientProvider` sống trong dashboard layout nên cache tồn tại khi chuyển
   giữa các route con của dashboard.
-- Catalog list/detail có `staleTime = 60s`, AbortSignal, debounce, placeholder
-  data và next-page/detail prefetch.
-- Add/archive SKU invalidate product detail, product lists và overview.
-- Đổi store xóa namespace catalog rồi reload.
+- Query key catalog có namespace `['store', storeScope, 'catalog', ...]`; đổi
+  store xóa common root trước reload để không flash cache tenant cũ.
+- Catalog list/detail có `staleTime = 60s`, `gcTime = 10m`, AbortSignal, debounce,
+  placeholder data, focus/reconnect refresh và next-page/detail prefetch.
+- Dashboard overview dùng API + `useQuery`, `staleTime = 30s`, polling 60 giây
+  khi tab visible, skeleton/error/retry; server page không còn gọi repository
+  overview trên mỗi return navigation.
+- Add/archive SKU, create/update product invalidate detail, list và overview theo
+  đúng namespace; invalidations chạy song song.
+- Sau shell interactive, idle warmup tối đa hai query (overview + catalog page 1),
+  bỏ qua tab hidden và `saveData`.
 - API overview tenant-scoped đã tồn tại.
 
 ### Khoảng trống
 
-- Dashboard overview vẫn là dynamic Server Component gọi database mỗi lần vào;
-  query key `catalog.overview()` chưa có `useQuery` consumer.
-- Global provider đặt `refetchOnWindowFocus: false`, làm query stale không tự hội
-  tụ khi người dùng quay lại tab.
-- Chưa có polling có kiểm soát cho dashboard/availability.
 - Chưa có event channel cho thay đổi từ tab/user/process khác.
-- Query key catalog chưa chứa tenant namespace; hiện dựa vào clear + full reload
-  khi đổi store. Cách này an toàn nếu luôn đi đúng store-switch flow nhưng dễ vỡ
-  khi sau này có silent session/store change.
-- Update product cần audit lại invalidation contract cho detail/overview, không
-  chỉ list.
+- Chưa có browser trace riêng chứng minh `Dashboard -> Catalog -> Dashboard`
+  không tạo network request overview trong `staleTime`; cần đo trên production
+  build và database fixture trước khi đánh dấu C2 hoàn tất.
 - Không có persisted query cache; đây là chủ ý an toàn cho MVP.
 
 Theo TanStack Query, stale queries có thể refetch khi mount, window focus hoặc
@@ -244,20 +249,21 @@ Khi đổi store/logout/session invalid:
 
 ### Increment C1 — Cache consistency foundation
 
-- Bật focus/reconnect refresh cho operational queries.
-- Chuẩn hóa query options/query-key factory có tenant namespace.
-- Audit mọi catalog mutation và map query keys bị ảnh hưởng.
-- Thêm tests store switch, stale query và invalidation mapping.
+- [x] Bật focus/reconnect refresh cho operational queries.
+- [x] Chuẩn hóa query options/query-key factory có tenant namespace.
+- [x] Audit mọi catalog mutation và map query keys bị ảnh hưởng.
+- [x] Thêm tests store switch và invalidation mapping.
 
 ### Increment C2 — Cached dashboard overview
 
-- Tạo `overviewQueryOptions` và `useCatalogOverview` dùng API hiện có.
-- Dashboard render cache ngay khi quay lại; first visit có skeleton/error/retry.
-- Seed/hydrate query nếu giữ server-first first paint; tránh server fetch lại mỗi
-  navigation hoặc API waterfall kép.
-- Add idle warmup overview và intent prefetch dashboard.
-- Test `Dashboard -> Catalog -> Dashboard` không gọi overview lại trong staleTime.
-- Catalog mutation làm overview stale/refetch đúng.
+- [x] Tạo `overviewQueryOptions` và `useCatalogOverview` dùng API hiện có.
+- [x] Dashboard render cache ngay khi quay lại; first visit có skeleton/error/retry.
+- [x] Bỏ server repository fetch trên return navigation; dùng một API query có
+  dedupe với idle warmup.
+- [x] Add idle warmup overview/catalog page 1 và intent prefetch detail.
+- [ ] Browser trace `Dashboard -> Catalog -> Dashboard` không gọi overview lại
+  trong staleTime.
+- [x] Catalog mutation làm overview stale/refetch đúng.
 
 ### Increment C3 — Freshness ngoài client
 
@@ -278,3 +284,18 @@ Khi đổi store/logout/session invalid:
 - Không tăng request nền khi tab hidden.
 - Benchmark và DB query count chứng minh warm navigation nhanh hơn mà không tạo
   polling storm.
+
+## 11. Lệnh verification cho C1/C2
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+npm run perf:browser
+```
+
+`perf:browser` ghi thêm `pages.dashboardReturn`: đây là client-side transition thật
+giữa Catalog và Dashboard, không phải hai `page.goto` độc lập. `overviewRefetched`
+phải là `false` khi quay lại trong `staleTime`; nếu là `true`, kiểm tra query key,
+provider remount hoặc request đã quá stale trước khi kết luận cache lỗi.
