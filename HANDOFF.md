@@ -632,3 +632,26 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve: namespace is cache isolation only, never authorization; server must
   resolve store from trusted session. Never persist or optimistically commit
   stock, money, permission or audit mutations.
+
+## 2026-08-17 — Production branch and Vercel release
+
+- Status: production deployment is live from commit `f9dbbdf` at
+  `https://pharmacy-management-ashy.vercel.app`; the Vercel production branch is
+  `production`, while `main` remains the GitHub default/integration branch.
+- Decisions: Vercel Functions run in `icn1` beside the Supabase
+  `ap-northeast-2` pooler; runtime uses the transaction pooler and Prisma
+  migration/admin commands still require `DIRECT_URL`. Local `.env*` files are
+  excluded from deployment uploads and generated Prisma Client is produced by
+  `postinstall` without exposing the migration connection.
+- CI/CD: pull requests and `main` run the fast quality job; `production` and
+  manual dispatch additionally run Chromium/Firefox evidence. Git integration
+  automatically deploys the `production` branch.
+- Changed files: `vercel.json`, `.vercelignore`, GitHub Actions workflow,
+  `prisma.config.ts`, package scripts and `docs/deployment.md`.
+- Verification: database has no pending migration; 49 tests, typecheck, lint and
+  production build pass; deployed home, health, login, session, store, catalog
+  and dashboard smoke checks all returned HTTP 200; deployment reports Node 22
+  functions in `icn1`.
+- Preserve: promote verified revisions `main -> production`; never point Preview
+  deployments at production data or expose database/auth secrets through
+  `NEXT_PUBLIC_*`.
