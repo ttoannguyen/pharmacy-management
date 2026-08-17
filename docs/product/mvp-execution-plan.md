@@ -37,7 +37,8 @@ COGS phải lấy từ batch allocation; mọi dữ liệu vận hành phải te
 
 Chưa đủ để bắt đầu giao dịch kho:
 
-- Chưa có product detail, thêm/sửa/archive SKU và luồng thay đổi giá/quy đổi.
+- Product detail và add/update/archive SKU đã có, nhưng product lifecycle và
+  chính sách version/lock conversion sau giao dịch vẫn chưa hoàn tất.
 - Chưa có Supplier, GoodsReceipt, Batch, StockMovement hay balance projection.
 - Chưa có POS, Sale, Payment, FEFO allocation, return/reversal và reporting.
 - Chưa có E2E, load baseline hay restore rehearsal.
@@ -49,7 +50,7 @@ The current foundation has been verified with:
 ```text
 npm run lint       ✓
 npm run typecheck  ✓
-npm test           ✓ 22 tests
+npm test           ✓ 65 tests
 npm run build      ✓
 ```
 
@@ -107,8 +108,10 @@ sửa lịch sử về sau.
   detail API, transactional add-SKU use case, audit, responsive UI and
   TanStack Query detail cache are implemented and verified.
 - [~] **E1.2 Price/conversion policy + archive**: SKU archive is now available
-  with tenant checks, last-active-SKU protection and audit; price/conversion
-  versioning and product lifecycle UI remain pending.
+  through responsive UI with tenant checks, mandatory reason, last-active-SKU
+  protection and audit. Price/conversion update now has exact input,
+  before/after audit and optimistic concurrency; product lifecycle and the
+  post-transaction conversion version/lock policy remain pending.
 
 ### Backend và data
 

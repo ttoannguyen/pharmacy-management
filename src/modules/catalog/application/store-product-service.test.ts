@@ -8,7 +8,9 @@ import {
   addStoreSkuSchema,
   assertStoreProductInput,
   assertStoreProductOverride,
+  assertUpdateStoreSku,
   storeProductInputSchema,
+  updateStoreSkuSchema,
 } from "./store-product-service";
 
 const context: StoreContext = {
@@ -49,5 +51,30 @@ describe("store product application boundary", () => {
     expect(() => addStoreSkuSchema.parse({ ...sku, quantityInBaseUnit: 0 })).toThrow();
     expect(() => addStoreSkuSchema.parse({ ...sku, sellingPriceMinor: -1 })).toThrow();
     expect(() => addStoreSkuSchema.parse({ ...sku, sellingPriceMinor: 1.2 })).toThrow();
+  });
+
+  it("requires a reason, expected version and a valid price or conversion change", () => {
+    const expectedUpdatedAt = "2026-08-17T12:00:00.000Z";
+    expect(updateStoreSkuSchema.parse({ sellingPriceMinor: 120, expectedUpdatedAt, reason: "Điều chỉnh giá" })).toEqual({
+      sellingPriceMinor: 120,
+      expectedUpdatedAt,
+      reason: "Điều chỉnh giá",
+    });
+    expect(() => updateStoreSkuSchema.parse({ expectedUpdatedAt, reason: "Không có thay đổi" })).toThrow();
+    expect(() => updateStoreSkuSchema.parse({ sellingPriceMinor: 1.2, expectedUpdatedAt, reason: "Sai giá" })).toThrow();
+    expect(updateStoreSkuSchema.parse({ quantityInBaseUnit: "10.125000", expectedUpdatedAt, reason: "Đổi quy cách" })).toMatchObject({ quantityInBaseUnit: "10.125000" });
+    expect(() => updateStoreSkuSchema.parse({ quantityInBaseUnit: "0", expectedUpdatedAt, reason: "Sai quy đổi" })).toThrow();
+    expect(() => updateStoreSkuSchema.parse({ quantityInBaseUnit: "1.0000001", expectedUpdatedAt, reason: "Quá độ chính xác" })).toThrow();
+    expect(() => updateStoreSkuSchema.parse({ sellingPriceMinor: 120, expectedUpdatedAt, reason: "" })).toThrow();
+  });
+
+  it("authorizes SKU updates against the active store", () => {
+    const input = {
+      sellingPriceMinor: 120,
+      expectedUpdatedAt: "2026-08-17T12:00:00.000Z",
+      reason: "Điều chỉnh giá",
+    };
+    expect(assertUpdateStoreSku(context, context.storeId, input)).toEqual(input);
+    expect(() => assertUpdateStoreSku(context, "00000000-0000-4000-8000-000000000011", input)).toThrow(ForbiddenError);
   });
 });

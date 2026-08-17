@@ -4,6 +4,7 @@ import {
   assertStoreProductInput,
   assertStoreProductOverride,
   assertAddStoreSku,
+  assertUpdateStoreSku,
   assertArchiveStoreSku,
   CatalogConflictError,
   CatalogNotFoundError,
@@ -11,6 +12,7 @@ import {
   type StoreProductInput,
   type StoreProductOverrideInput,
   type AddStoreSkuInput,
+  type UpdateStoreSkuInput,
   type ArchiveStoreSkuInput,
 } from "@/modules/catalog/application/store-product-service";
 import type { StoreContext } from "@/modules/identity/application/store-context";
@@ -244,7 +246,7 @@ export async function archiveStoreSku(
   storeId: string,
   productId: string,
   skuId: string,
-  rawInput: ArchiveStoreSkuInput = {},
+  rawInput: ArchiveStoreSkuInput,
 ) {
   const input = assertArchiveStoreSku(context, storeId, rawInput);
 
@@ -279,12 +281,113 @@ export async function archiveStoreSku(
         action: "CATALOG_STORE_SKU_ARCHIVED",
         targetType: "StoreSku",
         targetId: skuId,
-        reason: input.reason ?? "Archived store SKU",
+        reason: input.reason,
         before: { code: sku.code, isActive: sku.isActive, archivedAt: sku.archivedAt },
         after: { code: after.code, isActive: after.isActive, archivedAt: after.archivedAt },
       },
     });
 
     return after;
+  });
+}
+
+export async function updateStoreSku(
+  db: PrismaClient,
+  context: StoreContext,
+  storeId: string,
+  productId: string,
+  skuId: string,
+  rawInput: UpdateStoreSkuInput,
+) {
+  const input = assertUpdateStoreSku(context, storeId, rawInput);
+  const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+
+  return db.$transaction(async (tx) => {
+    const before = await tx.storeSku.findUnique({
+      where: { storeId_id: { storeId, id: skuId } },
+      select: {
+        id: true,
+        storeId: true,
+        storeProductId: true,
+        code: true,
+        isActive: true,
+        quantityInBaseUnit: true,
+        sellingPriceMinor: true,
+        updatedAt: true,
+      },
+    });
+    if (!before || before.storeId !== context.storeId || before.storeProductId !== productId) {
+      throw new CatalogNotFoundError("Store SKU not found.");
+    }
+    if (!before.isActive) throw new CatalogConflictError("Archived SKUs cannot be updated.");
+
+    const quantityChanged = input.quantityInBaseUnit !== undefined
+      && !new Prisma.Decimal(input.quantityInBaseUnit).equals(before.quantityInBaseUnit);
+    const priceChanged = input.sellingPriceMinor !== undefined
+      && BigInt(input.sellingPriceMinor) !== before.sellingPriceMinor;
+    if (!quantityChanged && !priceChanged) {
+      throw new CatalogConflictError("Price and conversion are unchanged.");
+    }
+
+    const updateResult = await tx.storeSku.updateMany({
+      where: {
+        storeId,
+        id: skuId,
+        storeProductId: productId,
+        isActive: true,
+        updatedAt: expectedUpdatedAt,
+      },
+      data: {
+        ...(quantityChanged ? { quantityInBaseUnit: input.quantityInBaseUnit } : {}),
+        ...(priceChanged ? { sellingPriceMinor: BigInt(input.sellingPriceMinor!) } : {}),
+      },
+    });
+    if (updateResult.count !== 1) {
+      throw new CatalogConflictError("SKU changed in another session. Refresh before retrying.");
+    }
+
+    const after = await tx.storeSku.findUnique({
+      where: { storeId_id: { storeId, id: skuId } },
+      select: {
+        id: true,
+        storeId: true,
+        storeProductId: true,
+        code: true,
+        quantityInBaseUnit: true,
+        sellingPriceMinor: true,
+        updatedAt: true,
+      },
+    });
+    if (!after) throw new CatalogNotFoundError("Updated Store SKU not found.");
+
+    await tx.auditLog.create({
+      data: {
+        storeId,
+        actorId: context.actor.id,
+        action: "CATALOG_STORE_SKU_PRICE_CONVERSION_UPDATED",
+        targetType: "StoreSku",
+        targetId: skuId,
+        reason: input.reason,
+        before: {
+          code: before.code,
+          quantityInBaseUnit: String(before.quantityInBaseUnit),
+          sellingPriceMinor: before.sellingPriceMinor.toString(),
+          updatedAt: before.updatedAt.toISOString(),
+        },
+        after: {
+          code: after.code,
+          quantityInBaseUnit: String(after.quantityInBaseUnit),
+          sellingPriceMinor: after.sellingPriceMinor.toString(),
+          updatedAt: after.updatedAt.toISOString(),
+        },
+      },
+    });
+
+    return {
+      ...after,
+      quantityInBaseUnit: String(after.quantityInBaseUnit),
+      sellingPriceMinor: after.sellingPriceMinor.toString(),
+      updatedAt: after.updatedAt.toISOString(),
+    };
   });
 }

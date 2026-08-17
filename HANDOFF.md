@@ -780,3 +780,34 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve: exact SKU/barcode predicates stay tenant-scoped and use normalized
   equality. Do not add trigram infrastructure until a reopen trigger and measured
   write/storage trade-off justify it.
+
+## 2026-08-17 — PERF-3.1 audited SKU lifecycle and bounded invalidation
+
+- Status: PERF-3.1 is complete. Add, update and archive SKU now have browser
+  evidence for bounded cache convergence. E1.2 remains partial because product
+  lifecycle and the conversion version/lock policy after the first transaction
+  are not implemented.
+- Contract: `PUT /api/catalog/products/:id/skus/:skuId` updates price and/or exact
+  positive conversion only after server-resolved tenant, permission, product and
+  active-state checks. It requires a reason plus `expectedUpdatedAt`; stale or
+  unchanged writes return conflict. Archive now also requires an explicit reason.
+- Consistency/audit: update and its safe before/after `AuditLog` snapshot commit
+  in one transaction. Client add/update/archive invalidations run in parallel for
+  detail, catalog list and overview; query keys remain UX cache input only.
+- UI: responsive product detail now exposes labelled update and archive forms for
+  every active SKU, renders mutation errors in place and never hard-deletes a SKU.
+- Browser evidence: `docs/performance/perf-3.1-browser-chromium.json` and
+  `docs/performance/perf-3.1-browser-firefox.json` each pass 13/13 criteria on a
+  production build and disposable PostgreSQL 16. Every add/update/archive flow
+  contains exactly one mutation plus one detail GET and zero list/overview API
+  refetches; update resolved to conversion `2` and price `1500`.
+- Cleanup/verification: both synthetic SKUs were archived and the database check
+  returned zero active `BROWSER-PERF-*` SKUs before the disposable database was
+  removed. Final verification passed 65 tests in 17 files, typecheck, lint,
+  Prisma validate, production build, JSON criteria/secret audit and diff check.
+- Changed areas: catalog application/infrastructure/API/client/detail UI, browser
+  evidence runner, catalog/cache/MVP/performance docs and this handoff. No schema
+  or migration changed.
+- Preserve: transaction lines in E3 must snapshot the conversion actually used;
+  do not let later SKU edits rewrite history. Keep `expectedUpdatedAt`, reason,
+  tenant ownership and server permission checks on sensitive SKU mutations.

@@ -32,6 +32,7 @@ const storeProductSelect = {
       unit: { select: { id: true, code: true, name: true } },
       quantityInBaseUnit: true,
       sellingPriceMinor: true,
+      updatedAt: true,
       barcodes: { select: { barcode: true } },
     },
   },
@@ -49,6 +50,7 @@ function mapStoreProduct(product: {
     unit: { id: string; code: string; name: string };
     quantityInBaseUnit: unknown;
     sellingPriceMinor: bigint;
+    updatedAt: Date;
     barcodes: Array<{ barcode: string }>;
   }>;
 }): StoreCatalogItem {
@@ -58,6 +60,7 @@ function mapStoreProduct(product: {
       ...sku,
       quantityInBaseUnit: String(sku.quantityInBaseUnit),
       sellingPriceMinor: sku.sellingPriceMinor.toString(),
+      updatedAt: sku.updatedAt.toISOString(),
       barcodes: sku.barcodes.map(({ barcode }) => barcode),
     })),
   };

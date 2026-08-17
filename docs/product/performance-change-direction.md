@@ -71,7 +71,7 @@ lập nếu repository workflow có commit/PR.
 | PERF-2.1 | [~] | Catalog exact search + bỏ count hot path | PERF-1.2 | Current SQL contract proves optional total adds one call; historical pre-change profile is unavailable |
 | PERF-2.2 | [x] | Free-text query plan + index migration nếu cần | PERF-2.1 | Current-source 1k/5k/5k EXPLAIN contract passes; no pg_trgm now, explicit future reopen trigger recorded |
 | PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | Current budget is 2 business/3 total SQL calls; historical pre-aggregate profile is unavailable |
-| PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Add/archive trace và concurrent invalidation đạt; update-SKU flow chưa thuộc MVP nên scope cuối chưa đóng |
+| PERF-3.1 | [x] | TanStack invalidation/query-key cleanup | PERF-2.1 | Add/update/archive SKU each produce one bounded detail refetch in Chromium/Firefox; no API waterfall |
 | PERF-3.2 | [x] | Provider/client boundary + route bundle gate | PERF-3.1 | Provider, bundle report và Chromium/Firefox Web Vitals CI evidence đã có; WebKit vẫn là release follow-up |
 | PERF-3.3 | [x] | Cache consistency foundation | PERF-3.1 implementation | Tenant namespace + focus/reconnect + mutation map có tests; 49 tests/typecheck/lint/build pass |
 | PERF-3.4 | [x] | Cached dashboard + progressive warmup | PERF-3.3 | Chromium/Firefox control-vs-warm trace đạt; cached return có 0 overview/RSC request và mutation hội tụ bằng một refetch |
@@ -482,14 +482,19 @@ exist.
 - [x] Khi đổi active store, clear/reset tenant-sensitive namespace trước render.
 - [x] Mutation response đủ để update detail cache khi an toàn; chỉ invalidate list
   aggregate cần thiết.
-- [~] Kiểm tra không tạo refetch waterfall tuần tự sau add/update/archive SKU;
-  source-level Promise.all test và Chromium/Firefox add/archive traces đã có,
-  nhưng chưa có update-SKU UI flow vì API update SKU chưa nằm trong MVP.
+- [x] Kiểm tra không tạo refetch waterfall tuần tự sau add/update/archive SKU;
+  source-level `Promise.all` test và Chromium/Firefox lifecycle traces đã có;
+  Chromium/Firefox evidence chứng minh mỗi flow chỉ có mutation + một detail GET,
+  không refetch list/overview tuần tự.
 - [x] Tests cho key factory/store switch và mutation cache behavior phù hợp.
 
 Implementation note: `catalogQueryKeys` is the sole key factory for catalog
 queries. Store switching removes the tenant-sensitive `catalog` namespace before
 reload; query cache remains a UX optimization and never an authorization source.
+SKU update uses a tenant-authorized transaction, mandatory audit reason and
+`expectedUpdatedAt` conflict guard before the same three invalidations run in
+parallel. Evidence: `docs/performance/perf-3.1-browser-chromium.json` and
+`docs/performance/perf-3.1-browser-firefox.json`.
 
 ### PERF-3.2 — Client boundary và bundle
 
@@ -688,6 +693,9 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 - Catalog exact/free-text planning contract đạt trên fixture disposable
   1.000/5.000/5.000; exact paths giữ composite indexes và pg_trgm được defer bằng
   explicit reopen trigger thay vì migration theo suy đoán.
+- Catalog add/update/archive SKU lifecycle đã được trace qua UI trên
+  Chromium/Firefox; mỗi mutation chỉ refetch active detail đúng một lần và không
+  tạo list/overview API waterfall.
 - Benchmark + synthetic fixture có guard, cleanup và report JSON không chứa secret.
 - Same-region disposable local gate đạt SLO trên fixture 1.000/5.000/5.000;
   Chromium và Firefox browser traces đạt MVP gate.

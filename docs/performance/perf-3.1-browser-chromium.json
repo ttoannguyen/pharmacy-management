@@ -1,0 +1,184 @@
+{
+  "generatedAt": "2026-08-17T16:41:38.089Z",
+  "stage": "after-sku-lifecycle",
+  "environment": "local-disposable",
+  "build": "production",
+  "commit": "working-tree-after-2dc934c",
+  "dataset": "deterministic demo seed",
+  "runtimeRegion": "local-node-22",
+  "databaseRegion": "local-postgresql-16",
+  "baseUrl": "http://127.0.0.1:4201",
+  "browser": "chromium",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": {
+    "dashboard": {
+      "navigationMs": 455.2,
+      "domContentLoadedMs": 330.5,
+      "loadMs": 455.2,
+      "lcpMs": 352,
+      "cls": 0,
+      "inpMs": 24
+    },
+    "catalog": {
+      "navigationMs": 168.9,
+      "domContentLoadedMs": 62.5,
+      "loadMs": 168.9,
+      "lcpMs": 184,
+      "cls": 0,
+      "inpMs": null
+    }
+  },
+  "returnNavigation": {
+    "controlFullReload": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 142.7,
+        "p90Ms": 202.6,
+        "p95Ms": 202.6,
+        "maxMs": 202.6
+      },
+      "samplesMs": [
+        202.6,
+        153.6,
+        142.7,
+        107.6,
+        104.4
+      ],
+      "overviewRequestsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "totalOverviewRequests": 5
+    },
+    "warmClientReturn": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 71.6,
+        "p90Ms": 79.2,
+        "p95Ms": 79.2,
+        "maxMs": 79.2
+      },
+      "samplesMs": [
+        49.8,
+        71.8,
+        66.8,
+        79.2,
+        71.6
+      ],
+      "overviewRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "totalOverviewRequests": 0,
+      "dashboardRscPrefetchRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dashboardRscRequestsOnClickPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxCacheAgeMs": 3236.8,
+      "withinStaleTime": true,
+      "cachedValueVisibleOnEveryReturn": true
+    }
+  },
+  "mutation": {
+    "route": "/dashboard/catalog/[id]",
+    "productId": "80000000-0000-4000-8000-000000000001",
+    "skuCountBefore": 1,
+    "skuCountAfter": 2,
+    "cachedValueDuringRefetch": "1",
+    "skeletonVisibleDuringRefetch": false,
+    "overviewRequestDelta": 1,
+    "returnAndConvergeMs": 1610.1,
+    "lifecycle": {
+      "add": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus",
+            "method": "POST",
+            "status": 201,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ]
+      },
+      "update": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/4885eece-1c09-448b-90b0-fdaec2fae379",
+            "method": "PUT",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "quantityInBaseUnit": "2",
+        "sellingPriceMinor": "1500"
+      },
+      "archive": {
+        "requests": [
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/4885eece-1c09-448b-90b0-fdaec2fae379",
+            "method": "PATCH",
+            "status": 200,
+            "failed": false
+          },
+          {
+            "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+            "method": "GET",
+            "status": 200,
+            "failed": false
+          }
+        ],
+        "status": 200
+      }
+    },
+    "cleanup": {
+      "attempted": true,
+      "archived": true,
+      "status": 200
+    }
+  },
+  "criteria": {
+    "directDashboardStillRequiresAuthentication": true,
+    "controlLoadsFetchOverviewExactlyOnce": true,
+    "warmReturnsStayWithinStaleTime": true,
+    "warmReturnsUseCachedOverview": true,
+    "warmReturnsUsePrefetchedDashboardRoute": true,
+    "warmMedianIsFasterThanControl": true,
+    "mutationKeepsCachedValueDuringRefetch": true,
+    "mutationConvergesInOneOverviewRequest": true,
+    "skuAddAvoidsRefetchWaterfall": true,
+    "skuUpdateAvoidsRefetchWaterfall": true,
+    "skuArchiveAvoidsRefetchWaterfall": true,
+    "mutationCleanupArchivedSku": true,
+    "noFailedApiRequests": true
+  }
+}

@@ -4,7 +4,7 @@ import { MembershipRole, SystemRole } from "@/generated/prisma/client";
 import { ForbiddenError } from "@/modules/identity/application/auth-errors";
 import type { StoreContext } from "@/modules/identity/application/store-context";
 
-import { addStoreSku, archiveStoreSku } from "./prisma-store-product-service";
+import { addStoreSku, archiveStoreSku, updateStoreSku } from "./prisma-store-product-service";
 
 const storeA = "00000000-0000-4000-8000-000000000010";
 const storeB = "00000000-0000-4000-8000-000000000011";
@@ -27,6 +27,7 @@ function makeDb(overrides: Record<string, unknown> = {}) {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: "sku-1", storeId: storeA, storeProductId: productA, code: "SKU-ONE", productPackageId: null, unitId: unit, quantityInBaseUnit: "10", sellingPriceMinor: 2500n }),
       count: vi.fn().mockResolvedValue(1),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       update: vi.fn().mockResolvedValue({ id: "sku-1", storeId: storeA, storeProductId: productA, code: "SKU-ONE", isActive: false, archivedAt: new Date() }),
     },
     storeBarcode: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "barcode-1" }) },
@@ -117,8 +118,104 @@ describe("archiveStoreSku transaction boundary", () => {
     tx.storeSku.findUnique.mockResolvedValue({ id: "sku-1", storeId: storeA, storeProductId: productA, code: "SKU-ONE", isActive: true, archivedAt: null });
     tx.storeSku.count.mockResolvedValue(0);
 
-    await expect(archiveStoreSku(db as never, ownerContext, storeA, productA, "sku-1")).rejects.toMatchObject({ code: "CATALOG_CONFLICT" });
+    await expect(archiveStoreSku(db as never, ownerContext, storeA, productA, "sku-1", { reason: "Không còn kinh doanh" })).rejects.toMatchObject({ code: "CATALOG_CONFLICT" });
     expect(tx.storeSku.update).not.toHaveBeenCalled();
     expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateStoreSku transaction boundary", () => {
+  const before = {
+    id: "sku-1",
+    storeId: storeA,
+    storeProductId: productA,
+    code: "SKU-ONE",
+    isActive: true,
+    quantityInBaseUnit: "10",
+    sellingPriceMinor: 2500n,
+    updatedAt: new Date("2026-08-17T12:00:00.000Z"),
+  };
+  const after = {
+    ...before,
+    quantityInBaseUnit: "12",
+    sellingPriceMinor: 3000n,
+    updatedAt: new Date("2026-08-17T12:01:00.000Z"),
+  };
+  const updateInput = {
+    quantityInBaseUnit: "12",
+    sellingPriceMinor: 3000,
+    expectedUpdatedAt: before.updatedAt.toISOString(),
+    reason: "Điều chỉnh giá và quy đổi",
+  };
+
+  it("updates with an optimistic version guard and audits safe before/after snapshots", async () => {
+    const { db, tx } = makeDb();
+    tx.storeSku.findUnique.mockResolvedValueOnce(before).mockResolvedValueOnce(after);
+
+    const result = await updateStoreSku(db as never, ownerContext, storeA, productA, "sku-1", updateInput);
+
+    expect(tx.storeSku.updateMany).toHaveBeenCalledWith({
+      where: {
+        storeId: storeA,
+        id: "sku-1",
+        storeProductId: productA,
+        isActive: true,
+        updatedAt: before.updatedAt,
+      },
+      data: { quantityInBaseUnit: "12", sellingPriceMinor: 3000n },
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        storeId: storeA,
+        actorId: "user-1",
+        action: "CATALOG_STORE_SKU_PRICE_CONVERSION_UPDATED",
+        targetId: "sku-1",
+        reason: updateInput.reason,
+        before: expect.objectContaining({ quantityInBaseUnit: "10", sellingPriceMinor: "2500" }),
+        after: expect.objectContaining({ quantityInBaseUnit: "12", sellingPriceMinor: "3000" }),
+      }),
+    }));
+    expect(result).toMatchObject({ quantityInBaseUnit: "12", sellingPriceMinor: "3000", updatedAt: after.updatedAt.toISOString() });
+  });
+
+  it("rejects foreign, archived, unchanged and stale SKUs without audit", async () => {
+    const foreign = makeDb();
+    foreign.tx.storeSku.findUnique.mockResolvedValue({ ...before, storeId: storeB });
+    await expect(updateStoreSku(foreign.db as never, ownerContext, storeA, productA, "sku-1", updateInput)).rejects.toMatchObject({ code: "CATALOG_NOT_FOUND" });
+    expect(foreign.tx.storeSku.updateMany).not.toHaveBeenCalled();
+
+    const archived = makeDb();
+    archived.tx.storeSku.findUnique.mockResolvedValue({ ...before, isActive: false });
+    await expect(updateStoreSku(archived.db as never, ownerContext, storeA, productA, "sku-1", updateInput)).rejects.toMatchObject({ code: "CATALOG_CONFLICT" });
+
+    const unchanged = makeDb();
+    unchanged.tx.storeSku.findUnique.mockResolvedValue(before);
+    await expect(updateStoreSku(unchanged.db as never, ownerContext, storeA, productA, "sku-1", {
+      ...updateInput,
+      quantityInBaseUnit: "10",
+      sellingPriceMinor: 2500,
+    })).rejects.toMatchObject({ code: "CATALOG_CONFLICT" });
+
+    const stale = makeDb();
+    stale.tx.storeSku.findUnique.mockResolvedValue(before);
+    stale.tx.storeSku.updateMany.mockResolvedValue({ count: 0 });
+    await expect(updateStoreSku(stale.db as never, ownerContext, storeA, productA, "sku-1", updateInput)).rejects.toMatchObject({ code: "CATALOG_CONFLICT" });
+    expect(stale.tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects roles without catalog permission before opening a transaction", async () => {
+    const { db } = makeDb();
+    const accountant = { ...ownerContext, role: MembershipRole.ACCOUNTANT };
+    await expect(updateStoreSku(db as never, accountant, storeA, productA, "sku-1", updateInput)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("does not commit an unaudited update when audit creation fails", async () => {
+    const { db, tx } = makeDb();
+    tx.storeSku.findUnique.mockResolvedValueOnce(before).mockResolvedValueOnce(after);
+    tx.auditLog.create.mockRejectedValue(new Error("audit unavailable"));
+
+    await expect(updateStoreSku(db as never, ownerContext, storeA, productA, "sku-1", updateInput)).rejects.toThrow("audit unavailable");
+    expect(tx.storeSku.updateMany).toHaveBeenCalled();
   });
 });

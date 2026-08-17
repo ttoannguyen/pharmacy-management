@@ -27,6 +27,8 @@ hoặc màn hình khiến người dùng hiểu nhầm là đã hoạt động.
   request.
 - Form tạo sản phẩm diễn đạt đúng đơn vị tồn cơ sở, quy đổi, tiền VND, vị trí kệ
   và tồn tối thiểu; sau khi lưu quay lại danh mục.
+- Product detail cho phép sửa giá/quy đổi và archive SKU với reason, audit và
+  stale-write conflict; cache mutation chỉ refetch active detail một lần.
 
 ## Khoảng trống ưu tiên
 

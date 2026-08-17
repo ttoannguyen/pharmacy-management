@@ -39,13 +39,33 @@ export const addStoreSkuSchema = z.object({
   sellingPriceMinor: z.number().int().nonnegative().safe(),
 });
 
+const exactPositiveConversionSchema = z.union([
+  z.string().trim(),
+  z.number().finite().transform((value) => String(value)),
+]).pipe(
+  z.string()
+    .regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/, "Conversion must fit decimal(18,6).")
+    .refine((value) => !/^0(?:\.0+)?$/.test(value), "Conversion must be greater than zero."),
+);
+
+export const updateStoreSkuSchema = z.object({
+  quantityInBaseUnit: exactPositiveConversionSchema.optional(),
+  sellingPriceMinor: z.number().int().nonnegative().safe().optional(),
+  expectedUpdatedAt: z.iso.datetime({ offset: true }),
+  reason: z.string().trim().min(1).max(240),
+}).refine(
+  (input) => input.quantityInBaseUnit !== undefined || input.sellingPriceMinor !== undefined,
+  { message: "At least one price or conversion change is required." },
+);
+
 export const archiveStoreSkuSchema = z.object({
-  reason: z.string().trim().min(1).max(240).optional(),
+  reason: z.string().trim().min(1).max(240),
 });
 
 export type StoreProductInput = z.infer<typeof storeProductInputSchema>;
 export type StoreProductOverrideInput = z.infer<typeof storeProductOverrideSchema>;
 export type AddStoreSkuInput = z.infer<typeof addStoreSkuSchema>;
+export type UpdateStoreSkuInput = z.infer<typeof updateStoreSkuSchema>;
 export type ArchiveStoreSkuInput = z.infer<typeof archiveStoreSkuSchema>;
 
 export class CatalogValidationError extends Error {
@@ -87,6 +107,13 @@ export function assertAddStoreSku(context: StoreContext, storeId: string, input:
   requirePermission(context, "MANAGE_CATALOG");
   requireStoreAccess(context, storeId);
   return { ...parsed, code: normalizeSkuCode(parsed.code) };
+}
+
+export function assertUpdateStoreSku(context: StoreContext, storeId: string, input: UpdateStoreSkuInput) {
+  const parsed = updateStoreSkuSchema.parse(input);
+  requirePermission(context, "MANAGE_CATALOG");
+  requireStoreAccess(context, storeId);
+  return parsed;
 }
 
 export function assertArchiveStoreSku(context: StoreContext, storeId: string, input: ArchiveStoreSkuInput) {

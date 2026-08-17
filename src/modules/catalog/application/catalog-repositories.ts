@@ -13,6 +13,7 @@ export type StoreCatalogItem = {
     unit: { id: string; code: string; name: string };
     quantityInBaseUnit: string;
     sellingPriceMinor: string;
+    updatedAt: string;
     barcodes: string[];
   }>;
 };

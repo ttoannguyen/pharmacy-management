@@ -12,7 +12,7 @@ export type StoreProductList = {
     displayName: string;
     shelfLocation: string | null;
     baseUnit: { id: string; code: string; name: string };
-    skus: Array<{ id: string; code: string; quantityInBaseUnit: string; sellingPriceMinor: string; barcodes: string[]; unit: { id: string; code: string; name: string } }>;
+    skus: Array<{ id: string; code: string; quantityInBaseUnit: string; sellingPriceMinor: string; updatedAt: string; barcodes: string[]; unit: { id: string; code: string; name: string } }>;
   }>;
   page: number;
   pageSize: number;
@@ -167,6 +167,24 @@ export function useArchiveStoreSku(productId: string, skuId: string) {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(reason ? { reason } : {}),
+    }),
+    onSuccess: () => invalidateCatalogAfterSkuMutation(queryClient, productId, scope),
+  });
+}
+
+export function useUpdateStoreSku(productId: string, skuId: string) {
+  const queryClient = useQueryClient();
+  const scope = useStoreScope();
+  return useMutation({
+    mutationFn: (input: {
+      quantityInBaseUnit?: string;
+      sellingPriceMinor?: number;
+      expectedUpdatedAt: string;
+      reason: string;
+    }) => readApi<{ sku: unknown }>(`/api/catalog/products/${productId}/skus/${skuId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
     }),
     onSuccess: () => invalidateCatalogAfterSkuMutation(queryClient, productId, scope),
   });

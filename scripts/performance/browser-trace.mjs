@@ -147,6 +147,21 @@ async function main() {
       .slice(startIndex)
       .filter((request) => request.path.startsWith("/dashboard?_rsc=") && request.method === "GET")
       .length;
+    const apiRequestsBetween = (startIndex, endIndex = requests.length) => requests
+      .slice(startIndex, endIndex)
+      .filter((request) => request.path.startsWith("/api/"))
+      .map(({ path, method, status, failed }) => ({ path, method, status, failed }));
+    const hasBoundedSkuMutationRefetch = (records, mutationPath, mutationMethod, detailPath) => {
+      const mutations = records.filter((request) => request.path === mutationPath && request.method === mutationMethod);
+      const reads = records.filter((request) => request.method === "GET");
+      return mutations.length === 1
+        && reads.length === 1
+        && reads[0].path === detailPath
+        && records.every((request) => !request.failed
+          && request.status !== null
+          && request.status >= 200
+          && request.status < 400);
+    };
     const skuMetric = () => page.locator("article.metric-card").filter({ hasText: "Quy cách / SKU" }).locator("strong");
 
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle" });
@@ -285,6 +300,8 @@ async function main() {
     createdSkuId = createdSku?.data?.sku?.id ?? null;
     if (!createdSkuId) throw new Error("SKU creation response did not include an ID.");
     await expect(page.getByText(newSkuCode, { exact: true })).toBeVisible();
+    const addMutationEndIndex = requests.length;
+    const addMutationRequests = apiRequestsBetween(mutationStartIndex, addMutationEndIndex);
 
     let delayedOverviewRequest = false;
     await page.route("**/api/catalog/overview", async (route) => {
@@ -309,16 +326,72 @@ async function main() {
     await expect(skuMetric()).toHaveText(numberFormatter.format(committedOverview.skuCount));
     const mutationReturnMs = performance.now() - mutationReturnStartedAt;
     const overviewRequestsAfterMutationReturn = countOverviewRequests();
-    const mutationRequests = requests.slice(mutationStartIndex).map(({ path, method, status, failed }) => ({ path, method, status, failed }));
 
-    cleanup = await page.evaluate(async ({ productId: cleanupProductId, skuId }) => {
-      const response = await fetch(`/api/catalog/products/${cleanupProductId}/skus/${skuId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Browser performance trace cleanup" }),
-      });
-      return { attempted: true, archived: response.ok, status: response.status };
-    }, { productId, skuId: createdSkuId });
+    // Return through client navigation and exercise the missing E1.2 lifecycle
+    // flow. Each mutation must produce only one active detail refetch; list and
+    // overview stay invalidated without a sequential request waterfall.
+    await Promise.all([
+      page.waitForURL("**/dashboard/catalog"),
+      page.getByRole("link", { name: "Danh mục thuốc" }).first().click(),
+    ]);
+    const lifecycleProductLink = page.locator(`a[href="/dashboard/catalog/${productId}"]`).first();
+    await Promise.all([
+      page.waitForURL(`**/dashboard/catalog/${productId}`),
+      lifecycleProductLink.click(),
+    ]);
+    const createdSkuItem = page.locator(".sku-detail-item").filter({ hasText: newSkuCode });
+    await expect(createdSkuItem).toBeVisible();
+
+    const updateMutationStartIndex = requests.length;
+    await createdSkuItem.getByRole("button", { name: `Sửa SKU ${newSkuCode}` }).click();
+    await page.getByLabel(`Quy đổi mới của ${newSkuCode}`).fill("2");
+    await page.getByLabel(`Giá bán mới của ${newSkuCode}`).fill("1500");
+    await page.getByLabel(`Lý do sửa ${newSkuCode}`).fill("Browser performance update evidence");
+    const [updateResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === baseOrigin
+          && url.pathname === `/api/catalog/products/${productId}/skus/${createdSkuId}`
+          && response.request().method() === "PUT";
+      }),
+      page.getByRole("button", { name: `Lưu thay đổi ${newSkuCode}` }).click(),
+    ]);
+    if (!updateResponse.ok()) throw new Error(`SKU update failed with status ${updateResponse.status()}.`);
+    const updatedSkuBody = await updateResponse.json();
+    const updatedSku = updatedSkuBody?.data?.sku ?? null;
+    await expect(createdSkuItem).toContainText("1.500");
+    const updateMutationEndIndex = requests.length;
+    const updateMutationRequests = apiRequestsBetween(updateMutationStartIndex, updateMutationEndIndex);
+
+    const archiveMutationStartIndex = requests.length;
+    await createdSkuItem.getByRole("button", { name: `Ngừng bán ${newSkuCode}` }).click();
+    await page.getByLabel(`Lý do ngừng bán ${newSkuCode}`).fill("Browser performance trace cleanup");
+    const [archiveResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === baseOrigin
+          && url.pathname === `/api/catalog/products/${productId}/skus/${createdSkuId}`
+          && response.request().method() === "PATCH";
+      }),
+      page.getByRole("button", { name: `Xác nhận ngừng bán ${newSkuCode}` }).click(),
+    ]);
+    cleanup = { attempted: true, archived: archiveResponse.ok(), status: archiveResponse.status() };
+    if (!archiveResponse.ok()) throw new Error(`SKU archive failed with status ${archiveResponse.status()}.`);
+    await expect(createdSkuItem).toHaveCount(0);
+    const archiveMutationEndIndex = requests.length;
+    const archiveMutationRequests = apiRequestsBetween(archiveMutationStartIndex, archiveMutationEndIndex);
+
+    const detailApiPath = `/api/catalog/products/${productId}`;
+    const skuApiPath = `/api/catalog/products/${productId}/skus/${createdSkuId}`;
+    const lifecycle = {
+      add: { requests: addMutationRequests },
+      update: {
+        requests: updateMutationRequests,
+        quantityInBaseUnit: updatedSku?.quantityInBaseUnit ?? null,
+        sellingPriceMinor: updatedSku?.sellingPriceMinor ?? null,
+      },
+      archive: { requests: archiveMutationRequests, status: cleanup.status },
+    };
 
     const mutation = {
       route: "/dashboard/catalog/[id]",
@@ -329,7 +402,7 @@ async function main() {
       skeletonVisibleDuringRefetch,
       overviewRequestDelta: overviewRequestsAfterMutationReturn - overviewRequestsBeforeMutationReturn,
       returnAndConvergeMs: Number(mutationReturnMs.toFixed(1)),
-      postMutationRequests: mutationRequests,
+      lifecycle,
       cleanup,
     };
 
@@ -345,10 +418,31 @@ async function main() {
         && !skeletonVisibleDuringRefetch,
       mutationConvergesInOneOverviewRequest: mutation.overviewRequestDelta === 1
         && mutation.skuCountAfter === mutation.skuCountBefore + 1,
+      skuAddAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+        addMutationRequests,
+        `/api/catalog/products/${productId}/skus`,
+        "POST",
+        detailApiPath,
+      ),
+      skuUpdateAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+        updateMutationRequests,
+        skuApiPath,
+        "PUT",
+        detailApiPath,
+      ) && updatedSku?.quantityInBaseUnit === "2" && updatedSku?.sellingPriceMinor === "1500",
+      skuArchiveAvoidsRefetchWaterfall: hasBoundedSkuMutationRefetch(
+        archiveMutationRequests,
+        skuApiPath,
+        "PATCH",
+        detailApiPath,
+      ),
       mutationCleanupArchivedSku: cleanup.archived,
       noFailedApiRequests: requests
         .filter((request) => request.path.startsWith("/api/"))
-        .every((request) => !request.failed && (request.status === null || request.status < 500)),
+        .every((request) => !request.failed
+          && request.status !== null
+          && request.status >= 200
+          && request.status < 400),
     };
 
     const report = {
