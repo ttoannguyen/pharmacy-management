@@ -57,7 +57,13 @@ must inject production values from its encrypted environment settings instead.
 6. Repeat the concurrency 1/5/20 performance profile in the deployed region.
 
 Dependency installation runs `prisma generate` through `postinstall`; generated
-client files remain ignored and must not be committed.
+client files remain ignored and must not be committed. Generate does not connect
+to PostgreSQL and may use the guarded localhost placeholder from
+`prisma.config.ts`; migration/admin commands still fail without `DIRECT_URL`.
+
+The fast quality job runs for pull requests, `main` and `production`. The heavier
+Chromium/Firefox evidence job runs only for `production` or a manual workflow
+dispatch, rather than on every development push.
 
 Breaking schema changes must use an expand/migrate/contract sequence so the old
 and new application revisions can overlap safely during rollout.
