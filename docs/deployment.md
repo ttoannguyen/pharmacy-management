@@ -56,6 +56,9 @@ must inject production values from its encrypted environment settings instead.
 5. Smoke-test `/api/health`, login, active-store selection and catalog APIs.
 6. Repeat the concurrency 1/5/20 performance profile in the deployed region.
 
+Dependency installation runs `prisma generate` through `postinstall`; generated
+client files remain ignored and must not be committed.
+
 Breaking schema changes must use an expand/migrate/contract sequence so the old
 and new application revisions can overlap safely during rollout.
 
