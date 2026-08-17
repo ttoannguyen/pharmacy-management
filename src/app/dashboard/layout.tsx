@@ -22,8 +22,24 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   if (workspace.actor.systemRole === SystemRole.SYSTEM_ADMIN && workspace.memberships.length === 0) redirect("/admin");
 
   const activeStore = workspace.activeStore
-    ? { store: workspace.activeStore.store, role: workspace.activeStore.role }
+    ? {
+      store: {
+        id: workspace.activeStore.store.id,
+        code: workspace.activeStore.store.code,
+        name: workspace.activeStore.store.name,
+      },
+      role: workspace.activeStore.role,
+    }
     : null;
+  const memberships = workspace.memberships.map((membership) => ({
+    storeId: membership.storeId,
+    role: membership.role,
+    store: {
+      id: membership.store.id,
+      code: membership.store.code,
+      name: membership.store.name,
+    },
+  }));
 
-  return <AppProviders storeScope={activeStore?.store.id}><DashboardShell user={workspace.actor} activeStore={activeStore}>{children}</DashboardShell></AppProviders>;
+  return <AppProviders workspace={{ activeStore, memberships }}><DashboardShell user={workspace.actor} activeStore={activeStore}>{children}</DashboardShell></AppProviders>;
 }

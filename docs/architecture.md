@@ -140,6 +140,13 @@ Stock movement là source of truth. Có thể tạo bảng balance/materialized 
 Báo cáo doanh thu và giá vốn dựa trên transaction lines cùng batch allocations,
 không dựa trên giá bán hay giá nhập hiện tại của master data.
 
+Authenticated dashboard layout resolves the trusted workspace once and passes a
+minimal store/membership summary to its persistent client provider. Child home
+content consumes that context on client return-navigation instead of querying
+identity again; direct entry still crosses the server layout guard, and every API
+continues to authorize from the session. Full dynamic-route prefetch is limited
+to the small Dashboard home route, not data-heavy operational routes.
+
 ## External integrations
 
 Tất cả tích hợp đi qua interface/adapter:

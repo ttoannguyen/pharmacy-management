@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Browser evidence runner for the performance plan.
- * Start a local production server separately and provide a disposable seeded DB.
- * The report intentionally stores paths/timings only; cookies and credentials
- * never leave the process.
+ * Browser evidence runner for PERF-3.2 and PERF-3.4.
+ *
+ * Start a local production server separately and point it at a disposable,
+ * deterministically seeded database. The report stores only paths, counts and
+ * timings; credentials and cookies never leave this process.
  */
 import { writeFile } from "node:fs/promises";
-import { chromium, firefox, webkit } from "@playwright/test";
+import { chromium, expect, firefox, webkit } from "@playwright/test";
 
 const baseUrl = (process.env.PERF_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+const baseOrigin = new URL(baseUrl).origin;
 const host = new URL(baseUrl).hostname;
 if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
   throw new Error("Browser trace only accepts a local target.");
@@ -17,10 +19,49 @@ if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
 
 const email = process.env.PERF_EMAIL ?? "owner@demo.invalid";
 const password = process.env.PERF_PASSWORD ?? "DemoPassword123!";
-const output = process.env.PERF_OUTPUT ?? "docs/performance/perf-3.2-browser.json";
+const output = process.env.PERF_OUTPUT ?? "docs/performance/perf-browser-local.json";
 const browserName = process.env.PERF_BROWSER ?? "chromium";
 const browserTypes = { chromium, firefox, webkit };
 if (!browserTypes[browserName]) throw new Error("PERF_BROWSER must be chromium, firefox or webkit.");
+
+const navigationSamples = Number(process.env.PERF_NAV_SAMPLES ?? 5);
+if (!Number.isInteger(navigationSamples) || navigationSamples < 3 || navigationSamples > 20) {
+  throw new Error("PERF_NAV_SAMPLES must be an integer between 3 and 20.");
+}
+
+const numberFormatter = new Intl.NumberFormat("vi-VN");
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function percentile(values, percentileValue) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.max(0, Math.ceil((percentileValue / 100) * sorted.length) - 1);
+  return Number(sorted[index].toFixed(1));
+}
+
+function summarize(values) {
+  return {
+    n: values.length,
+    p50Ms: percentile(values, 50),
+    p90Ms: percentile(values, 90),
+    p95Ms: percentile(values, 95),
+    maxMs: Number(Math.max(...values).toFixed(1)),
+  };
+}
+
+function isOverviewGet(response) {
+  const url = new URL(response.url());
+  return url.origin === baseOrigin
+    && url.pathname === "/api/catalog/overview"
+    && response.request().method() === "GET";
+}
+
+async function readOverview(response) {
+  const body = await response.json();
+  if (!response.ok() || !body?.data) {
+    throw new Error(`Overview request failed with status ${response.status()}.`);
+  }
+  return body.data;
+}
 
 async function readVitals(page) {
   return page.evaluate(() => {
@@ -39,109 +80,319 @@ async function readVitals(page) {
 
 async function main() {
   const browser = await browserTypes[browserName].launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  await context.addInitScript(() => {
-    const state = { lcp: null, cls: 0, inp: null };
-    window.__pharmacyPerformance = state;
-    try {
-      new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        if (entries.length) state.lcp = Math.round(entries.at(-1).startTime * 10) / 10;
-      }).observe({ type: "largest-contentful-paint", buffered: true });
-      new PerformanceObserver((list) => {
-        state.cls = Math.round(list.getEntries().filter((entry) => !entry.hadRecentInput).reduce((sum, entry) => sum + entry.value, 0) * 1000) / 1000;
-      }).observe({ type: "layout-shift", buffered: true });
-      new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        if (entries.length) state.inp = Math.round(Math.max(...entries.map((entry) => entry.duration)) * 10) / 10;
-      }).observe({ type: "event", buffered: true, durationThreshold: 16 });
-    } catch {
-      // Unsupported observers are represented as null in the report.
+  let page = null;
+  let createdProductId = null;
+  let createdSkuId = null;
+  let cleanup = { attempted: false, archived: false, status: null };
+
+  try {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => {
+      const state = { lcp: null, cls: 0, inp: null };
+      window.__pharmacyPerformance = state;
+      try {
+        new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          if (entries.length) state.lcp = Math.round(entries.at(-1).startTime * 10) / 10;
+        }).observe({ type: "largest-contentful-paint", buffered: true });
+        new PerformanceObserver((list) => {
+          state.cls = Math.round(list.getEntries().filter((entry) => !entry.hadRecentInput).reduce((sum, entry) => sum + entry.value, 0) * 1000) / 1000;
+        }).observe({ type: "layout-shift", buffered: true });
+        new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          if (entries.length) state.inp = Math.round(Math.max(...entries.map((entry) => entry.duration)) * 10) / 10;
+        }).observe({ type: "event", buffered: true, durationThreshold: 16 });
+      } catch {
+        // Unsupported observers are represented as null in the report.
+      }
+    });
+
+    page = await context.newPage();
+    const requests = [];
+    const requestRecords = new WeakMap();
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.origin !== baseOrigin) return;
+      const record = {
+        path: `${url.pathname}${url.search}`,
+        method: request.method(),
+        startedAt: performance.now(),
+        status: null,
+        failed: false,
+      };
+      requests.push(record);
+      requestRecords.set(request, record);
+    });
+    page.on("response", (response) => {
+      const record = requestRecords.get(response.request());
+      if (record) record.status = response.status();
+    });
+    page.on("requestfinished", (request) => {
+      const record = requestRecords.get(request);
+      if (record) record.finishedAt = performance.now();
+    });
+    page.on("requestfailed", (request) => {
+      const record = requestRecords.get(request);
+      if (record) {
+        record.failed = true;
+        record.finishedAt = performance.now();
+      }
+    });
+
+    const countOverviewRequests = (startIndex = 0) => requests
+      .slice(startIndex)
+      .filter((request) => request.path === "/api/catalog/overview" && request.method === "GET")
+      .length;
+    const countDashboardRscRequests = (startIndex = 0) => requests
+      .slice(startIndex)
+      .filter((request) => request.path.startsWith("/dashboard?_rsc=") && request.method === "GET")
+      .length;
+    const skuMetric = () => page.locator("article.metric-card").filter({ hasText: "Quy cách / SKU" }).locator("strong");
+
+    await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle" });
+    const directDashboardRequiresLogin = new URL(page.url()).pathname === "/auth/login";
+    if (!directDashboardRequiresLogin) {
+      throw new Error("Unauthenticated direct dashboard entry did not redirect to login.");
     }
-  });
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Mật khẩu").fill(password);
+    const loginOverviewResponse = page.waitForResponse(isOverviewGet);
+    await Promise.all([
+      page.waitForURL("**/dashboard"),
+      page.getByRole("button", { name: "Đăng nhập" }).click(),
+    ]);
+    await readOverview(await loginOverviewResponse);
+    await page.waitForLoadState("networkidle");
+    const dashboard = await readVitals(page);
 
-  const page = await context.newPage();
-  const requests = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (url.origin === baseUrl) requests.push({ path: `${url.pathname}${url.search}`, method: request.method(), startedAt: performance.now() });
-  });
-  page.on("requestfinished", (request) => {
-    const found = [...requests].reverse().find((entry) => entry.path === `${new URL(request.url()).pathname}${new URL(request.url()).search}` && !entry.finishedAt);
-    if (found) found.finishedAt = performance.now();
-  });
+    // Preserve PERF-3.2 route-level Web Vitals evidence with an isolated full
+    // navigation. PERF-3.4 cache evidence starts after this measurement.
+    await page.goto(`${baseUrl}/dashboard/catalog`, { waitUntil: "networkidle" });
+    const catalog = await readVitals(page);
 
-  await page.goto(`${baseUrl}/auth/login`, { waitUntil: "networkidle" });
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Mật khẩu").fill(password);
-  await Promise.all([
-    page.waitForURL("**/dashboard"),
-    page.getByRole("button", { name: "Đăng nhập" }).click(),
-  ]);
-  await page.waitForLoadState("networkidle");
-  const dashboard = await readVitals(page);
+    const controlDurations = [];
+    const controlOverviewRequests = [];
+    let baselineOverview = null;
+    let cacheSeededAt = null;
 
-  await page.goto(`${baseUrl}/dashboard/catalog`, { waitUntil: "networkidle" });
-  const catalog = await readVitals(page);
+    // Full document navigation remounts QueryClientProvider. It is the controlled
+    // baseline for the same build, dataset and browser profile.
+    for (let sample = 0; sample < navigationSamples; sample += 1) {
+      const startIndex = requests.length;
+      const startedAt = performance.now();
+      const overviewResponse = page.waitForResponse(isOverviewGet);
+      await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
+      baselineOverview = await readOverview(await overviewResponse);
+      await expect(skuMetric()).toHaveText(numberFormatter.format(baselineOverview.skuCount));
+      controlDurations.push(performance.now() - startedAt);
+      await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(800);
+      controlOverviewRequests.push(countOverviewRequests(startIndex));
+      cacheSeededAt = performance.now();
+    }
 
-  // Exercise the real client-side route transition. A full page.goto would
-  // remount QueryClientProvider and could not prove return-navigation caching.
-  const overviewRequestsBeforeReturn = requests.filter((request) => request.path === "/api/catalog/overview").length;
-  await Promise.all([
-    page.waitForURL("**/dashboard"),
-    page.getByRole("link", { name: "Tổng quan" }).click(),
-  ]);
-  await page.waitForLoadState("networkidle");
-  const overviewRequestsAfterReturn = requests.filter((request) => request.path === "/api/catalog/overview").length;
-  const dashboardReturn = {
-    overviewRequestsBefore: overviewRequestsBeforeReturn,
-    overviewRequestsAfter: overviewRequestsAfterReturn,
-    overviewRefetched: overviewRequestsAfterReturn > overviewRequestsBeforeReturn,
-  };
+    const warmDurations = [];
+    const warmOverviewRequests = [];
+    const warmDashboardRscPrefetchRequests = [];
+    const warmDashboardRscRequestsOnClick = [];
+    const cacheAges = [];
+    let cachedValueVisibleOnEveryReturn = true;
 
-  const catalogRequestsBeforeMutation = requests.filter((request) => request.path.startsWith("/api/catalog/")).length;
-  await page.goto(`${baseUrl}/dashboard/catalog/80000000-0000-4000-8000-000000000001`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Thêm SKU/ }).click();
-  await page.getByLabel(/Mã SKU/).fill(`BROWSER-PERF-${Date.now()}`);
-  await page.getByLabel(/Quy đổi về cơ sở/).fill("1");
-  await page.getByLabel(/Giá bán/).fill("1000");
-  const [skuResponse] = await Promise.all([
-    page.waitForResponse((response) => response.url().includes("/api/catalog/products/") && response.request().method() === "POST"),
-    page.getByRole("button", { name: "Lưu SKU" }).click(),
-  ]);
-  const createdSku = await skuResponse.json();
-  const createdSkuId = createdSku?.data?.sku?.id;
-  if (createdSkuId) {
-    await page.evaluate(async (skuId) => {
-      const response = await fetch(`/api/catalog/products/80000000-0000-4000-8000-000000000001/skus/${skuId}`, {
+    // These are real Next client transitions. The provider and QueryClient must
+    // remain mounted from Dashboard -> Catalog -> Dashboard.
+    for (let sample = 0; sample < navigationSamples; sample += 1) {
+      const cycleStartIndex = requests.length;
+      await Promise.all([
+        page.waitForURL("**/dashboard/catalog"),
+        page.getByRole("link", { name: "Danh mục thuốc" }).first().click(),
+      ]);
+      await page.getByRole("heading", { name: "Sản phẩm & quy cách bán" }).waitFor();
+
+      const startIndex = requests.length;
+      const startedAt = performance.now();
+      await Promise.all([
+        page.waitForURL("**/dashboard"),
+        page.getByRole("link", { name: "Tổng quan", exact: true }).click(),
+      ]);
+      await expect(skuMetric()).toHaveText(numberFormatter.format(baselineOverview.skuCount));
+      warmDurations.push(performance.now() - startedAt);
+      cachedValueVisibleOnEveryReturn &&= await skuMetric().isVisible();
+      await page.waitForLoadState("networkidle");
+      warmOverviewRequests.push(countOverviewRequests(startIndex));
+      const dashboardRscOnClick = countDashboardRscRequests(startIndex);
+      warmDashboardRscRequestsOnClick.push(dashboardRscOnClick);
+      warmDashboardRscPrefetchRequests.push(countDashboardRscRequests(cycleStartIndex) - dashboardRscOnClick);
+      cacheAges.push(performance.now() - cacheSeededAt);
+    }
+
+    const controlDurationSummary = summarize(controlDurations);
+    const warmDurationSummary = summarize(warmDurations);
+    const returnNavigation = {
+      controlFullReload: {
+        durations: controlDurationSummary,
+        samplesMs: controlDurations.map((value) => Number(value.toFixed(1))),
+        overviewRequestsPerSample: controlOverviewRequests,
+        totalOverviewRequests: controlOverviewRequests.reduce((sum, value) => sum + value, 0),
+      },
+      warmClientReturn: {
+        durations: warmDurationSummary,
+        samplesMs: warmDurations.map((value) => Number(value.toFixed(1))),
+        overviewRequestsPerSample: warmOverviewRequests,
+        totalOverviewRequests: warmOverviewRequests.reduce((sum, value) => sum + value, 0),
+        dashboardRscPrefetchRequestsPerSample: warmDashboardRscPrefetchRequests,
+        dashboardRscRequestsOnClickPerSample: warmDashboardRscRequestsOnClick,
+        maxCacheAgeMs: Number(Math.max(...cacheAges).toFixed(1)),
+        withinStaleTime: Math.max(...cacheAges) < 30_000,
+        cachedValueVisibleOnEveryReturn,
+      },
+    };
+
+    // Prove mutation convergence without remounting the provider. Add one SKU,
+    // verify the old cached overview remains visible during a delayed refetch,
+    // then verify the committed count arrives in one overview request.
+    await Promise.all([
+      page.waitForURL("**/dashboard/catalog"),
+      page.getByRole("link", { name: "Danh mục thuốc" }).first().click(),
+    ]);
+    const productLink = page.locator(".product-title a").first();
+    const productHref = await productLink.getAttribute("href");
+    if (!productHref) throw new Error("Seeded catalog has no product detail link.");
+    const productId = new URL(productHref, baseUrl).pathname.split("/").at(-1);
+    if (!productId) throw new Error("Could not resolve the product ID from the catalog link.");
+    createdProductId = productId;
+    await Promise.all([
+      page.waitForURL(`**/dashboard/catalog/${productId}`),
+      productLink.click(),
+    ]);
+
+    const mutationStartIndex = requests.length;
+    const newSkuCode = `BROWSER-PERF-${Date.now()}`;
+    await page.getByRole("button", { name: /Thêm SKU/ }).click();
+    await page.getByLabel(/Mã SKU/).fill(newSkuCode);
+    await page.getByLabel(/Quy đổi về cơ sở/).fill("1");
+    await page.getByLabel(/Giá bán/).fill("1000");
+    const [skuResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === baseOrigin
+          && url.pathname === `/api/catalog/products/${productId}/skus`
+          && response.request().method() === "POST";
+      }),
+      page.getByRole("button", { name: "Lưu SKU" }).click(),
+    ]);
+    if (!skuResponse.ok()) throw new Error(`SKU creation failed with status ${skuResponse.status()}.`);
+    const createdSku = await skuResponse.json();
+    createdSkuId = createdSku?.data?.sku?.id ?? null;
+    if (!createdSkuId) throw new Error("SKU creation response did not include an ID.");
+    await expect(page.getByText(newSkuCode, { exact: true })).toBeVisible();
+
+    let delayedOverviewRequest = false;
+    await page.route("**/api/catalog/overview", async (route) => {
+      if (!delayedOverviewRequest && route.request().method() === "GET") {
+        delayedOverviewRequest = true;
+        await sleep(1_500);
+      }
+      await route.continue();
+    });
+
+    const overviewRequestsBeforeMutationReturn = countOverviewRequests();
+    const mutationOverviewResponse = page.waitForResponse(isOverviewGet);
+    const mutationReturnStartedAt = performance.now();
+    await Promise.all([
+      page.waitForURL("**/dashboard"),
+      page.getByRole("link", { name: "Tổng quan", exact: true }).click(),
+    ]);
+    await skuMetric().waitFor({ state: "visible" });
+    const cachedValueDuringRefetch = (await skuMetric().textContent())?.trim() ?? null;
+    const skeletonVisibleDuringRefetch = await page.locator("article.metric-card[aria-hidden='true']").count() > 0;
+    const committedOverview = await readOverview(await mutationOverviewResponse);
+    await expect(skuMetric()).toHaveText(numberFormatter.format(committedOverview.skuCount));
+    const mutationReturnMs = performance.now() - mutationReturnStartedAt;
+    const overviewRequestsAfterMutationReturn = countOverviewRequests();
+    const mutationRequests = requests.slice(mutationStartIndex).map(({ path, method, status, failed }) => ({ path, method, status, failed }));
+
+    cleanup = await page.evaluate(async ({ productId: cleanupProductId, skuId }) => {
+      const response = await fetch(`/api/catalog/products/${cleanupProductId}/skus/${skuId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Browser performance trace cleanup" }),
       });
-      if (!response.ok) throw new Error(`SKU archive failed: ${response.status}`);
-    }, createdSkuId);
-  }
-  await page.waitForTimeout(250);
-  const catalogRequestsAfterMutation = requests.filter((request) => request.path.startsWith("/api/catalog/")).length;
+      return { attempted: true, archived: response.ok, status: response.status };
+    }, { productId, skuId: createdSkuId });
 
-  const report = {
-    generatedAt: new Date().toISOString(),
-    environment: process.env.PERF_ENVIRONMENT ?? "local",
-    baseUrl: new URL(baseUrl).origin,
-    browser: browserName,
-    viewport: { width: 1440, height: 900 },
-    pages: { dashboard, catalog, dashboardReturn },
-    mutation: {
+    const mutation = {
       route: "/dashboard/catalog/[id]",
-      requestCountBefore: catalogRequestsBeforeMutation,
-      requestCountAfter: catalogRequestsAfterMutation,
-      postMutationRequests: requests.slice(-8).map(({ path, method }) => ({ path, method })),
-      archiveTested: Boolean(createdSkuId),
-    },
-  };
-  await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await browser.close();
-  console.log(JSON.stringify({ output, pages: report.pages, mutation: report.mutation }, null, 2));
+      productId,
+      skuCountBefore: baselineOverview.skuCount,
+      skuCountAfter: committedOverview.skuCount,
+      cachedValueDuringRefetch,
+      skeletonVisibleDuringRefetch,
+      overviewRequestDelta: overviewRequestsAfterMutationReturn - overviewRequestsBeforeMutationReturn,
+      returnAndConvergeMs: Number(mutationReturnMs.toFixed(1)),
+      postMutationRequests: mutationRequests,
+      cleanup,
+    };
+
+    const criteria = {
+      directDashboardStillRequiresAuthentication: directDashboardRequiresLogin,
+      controlLoadsFetchOverviewExactlyOnce: controlOverviewRequests.every((count) => count === 1),
+      warmReturnsStayWithinStaleTime: returnNavigation.warmClientReturn.withinStaleTime,
+      warmReturnsUseCachedOverview: warmOverviewRequests.every((count) => count === 0)
+        && cachedValueVisibleOnEveryReturn,
+      warmReturnsUsePrefetchedDashboardRoute: warmDashboardRscRequestsOnClick.every((count) => count === 0),
+      warmMedianIsFasterThanControl: warmDurationSummary.p50Ms < controlDurationSummary.p50Ms,
+      mutationKeepsCachedValueDuringRefetch: cachedValueDuringRefetch === numberFormatter.format(baselineOverview.skuCount)
+        && !skeletonVisibleDuringRefetch,
+      mutationConvergesInOneOverviewRequest: mutation.overviewRequestDelta === 1
+        && mutation.skuCountAfter === mutation.skuCountBefore + 1,
+      mutationCleanupArchivedSku: cleanup.archived,
+      noFailedApiRequests: requests
+        .filter((request) => request.path.startsWith("/api/"))
+        .every((request) => !request.failed && (request.status === null || request.status < 500)),
+    };
+
+    const report = {
+      generatedAt: new Date().toISOString(),
+      stage: process.env.PERF_STAGE ?? "current",
+      environment: process.env.PERF_ENVIRONMENT ?? "local",
+      build: process.env.PERF_BUILD ?? "production",
+      commit: process.env.GITHUB_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.PERF_COMMIT ?? "unknown",
+      dataset: process.env.PERF_DATASET ?? "deterministic demo seed",
+      runtimeRegion: process.env.PERF_RUNTIME_REGION ?? "local",
+      databaseRegion: process.env.PERF_DATABASE_REGION ?? "local",
+      baseUrl: baseOrigin,
+      browser: browserName,
+      viewport: { width: 1440, height: 900 },
+      pages: { dashboard, catalog },
+      returnNavigation,
+      mutation,
+      criteria,
+    };
+    await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
+    const failures = Object.entries(criteria).filter(([, passed]) => !passed).map(([name]) => name);
+    console.log(JSON.stringify({ output, returnNavigation, mutation, criteria }, null, 2));
+    if (failures.length) throw new Error(`Browser performance criteria failed: ${failures.join(", ")}.`);
+  } finally {
+    if (createdSkuId && createdProductId && page && !cleanup.attempted) {
+      try {
+        cleanup = await page.evaluate(async ({ productId, skuId }) => {
+          const response = await fetch(`/api/catalog/products/${productId}/skus/${skuId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: "Browser performance trace failure cleanup" }),
+          });
+          return { attempted: true, archived: response.ok, status: response.status };
+        }, { productId: createdProductId, skuId: createdSkuId });
+      } catch {
+        cleanup = { attempted: true, archived: false, status: null };
+      }
+    }
+    if (createdSkuId && !cleanup.archived) {
+      console.error("Created browser fixture SKU could not be archived; dispose the test database.");
+    }
+    await browser.close();
+  }
 }
 
 main().catch((error) => {

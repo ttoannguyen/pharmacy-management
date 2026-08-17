@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-08-17T15:56:23.221Z",
+  "stage": "after-dashboard-workspace-and-full-prefetch",
+  "environment": "local-disposable",
+  "build": "production",
+  "commit": "working-tree@63f5fb9",
+  "dataset": "deterministic demo seed (1 product, 1 active SKU)",
+  "runtimeRegion": "local-node-22",
+  "databaseRegion": "local-postgresql-16",
+  "baseUrl": "http://127.0.0.1:4100",
+  "browser": "chromium",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": {
+    "dashboard": {
+      "navigationMs": 302.9,
+      "domContentLoadedMs": 227,
+      "loadMs": 302.9,
+      "lcpMs": 284,
+      "cls": 0,
+      "inpMs": 16
+    },
+    "catalog": {
+      "navigationMs": 79.1,
+      "domContentLoadedMs": 78.3,
+      "loadMs": 79.1,
+      "lcpMs": 436,
+      "cls": 0,
+      "inpMs": null
+    }
+  },
+  "returnNavigation": {
+    "controlFullReload": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 161.7,
+        "p90Ms": 181.2,
+        "p95Ms": 181.2,
+        "maxMs": 181.2
+      },
+      "samplesMs": [
+        180.3,
+        133.5,
+        181.2,
+        158.1,
+        161.7
+      ],
+      "overviewRequestsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "totalOverviewRequests": 5
+    },
+    "warmClientReturn": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 46.1,
+        "p90Ms": 48.4,
+        "p95Ms": 48.4,
+        "maxMs": 48.4
+      },
+      "samplesMs": [
+        48.4,
+        43.6,
+        46.7,
+        30.6,
+        46.1
+      ],
+      "overviewRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "totalOverviewRequests": 0,
+      "dashboardRscPrefetchRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dashboardRscRequestsOnClickPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxCacheAgeMs": 3254.1,
+      "withinStaleTime": true,
+      "cachedValueVisibleOnEveryReturn": true
+    }
+  },
+  "mutation": {
+    "route": "/dashboard/catalog/[id]",
+    "productId": "80000000-0000-4000-8000-000000000001",
+    "skuCountBefore": 1,
+    "skuCountAfter": 2,
+    "cachedValueDuringRefetch": "1",
+    "skeletonVisibleDuringRefetch": false,
+    "overviewRequestDelta": 1,
+    "returnAndConvergeMs": 1602.4,
+    "postMutationRequests": [
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus",
+        "method": "POST",
+        "status": 201,
+        "failed": false
+      },
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+        "method": "GET",
+        "status": 200,
+        "failed": false
+      },
+      {
+        "path": "/api/catalog/overview",
+        "method": "GET",
+        "status": 200,
+        "failed": false
+      }
+    ],
+    "cleanup": {
+      "attempted": true,
+      "archived": true,
+      "status": 200
+    }
+  },
+  "criteria": {
+    "directDashboardStillRequiresAuthentication": true,
+    "controlLoadsFetchOverviewExactlyOnce": true,
+    "warmReturnsStayWithinStaleTime": true,
+    "warmReturnsUseCachedOverview": true,
+    "warmReturnsUsePrefetchedDashboardRoute": true,
+    "warmMedianIsFasterThanControl": true,
+    "mutationKeepsCachedValueDuringRefetch": true,
+    "mutationConvergesInOneOverviewRequest": true,
+    "mutationCleanupArchivedSku": true,
+    "noFailedApiRequests": true
+  }
+}

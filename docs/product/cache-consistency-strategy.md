@@ -3,10 +3,10 @@
 Ngày lập: 2026-08-17. Tài liệu này mô tả contract dữ liệu; checklist thực thi duy
 nhất vẫn nằm tại `docs/product/performance-change-direction.md`.
 
-Trạng thái triển khai ngày 2026-08-17: **C1 hoàn tất ở mức code/test**; **C2 đã
-triển khai nền tảng và đang chờ browser trace xác nhận return-navigation**; C3
-(freshness ngoài client/realtime) chưa mở. Cache vẫn chỉ là read optimization,
-không phải nguồn sự thật hay cơ chế ủy quyền.
+Trạng thái triển khai ngày 2026-08-17: **C1 và C2 hoàn tất** bằng code/test cùng
+control-vs-warm browser trace trên Chromium/Firefox; C3 (freshness ngoài
+client/realtime) chưa mở. Cache vẫn chỉ là read optimization, không phải nguồn sự
+thật hay cơ chế ủy quyền.
 
 ## 1. Mục tiêu
 
@@ -52,13 +52,15 @@ complete receipt bị cấm vì server không thể bảo đảm concurrency/inv
   bỏ qua tab hidden và `saveData`.
 - API overview tenant-scoped đã tồn tại.
 
-### Khoảng trống
+### Khoảng trống còn lại
 
 - Chưa có event channel cho thay đổi từ tab/user/process khác.
-- Chưa có browser trace riêng chứng minh `Dashboard -> Catalog -> Dashboard`
-  không tạo network request overview trong `staleTime`; cần đo trên production
-  build và database fixture trước khi đánh dấu C2 hoàn tất.
 - Không có persisted query cache; đây là chủ ý an toàn cho MVP.
+
+PERF-3.4 đã chứng minh năm lần `Dashboard -> Catalog -> Dashboard` trên mỗi
+browser không tạo overview request hoặc dashboard RSC request lúc click trong
+`staleTime`; mutation giữ cache cũ khi refetch và hội tụ bằng đúng một overview
+GET. Xem `docs/performance/perf-3.4-local.md`.
 
 Theo TanStack Query, stale queries có thể refetch khi mount, window focus hoặc
 network reconnect; inactive queries được giữ trong memory rồi garbage collect.
@@ -261,7 +263,7 @@ Khi đổi store/logout/session invalid:
 - [x] Bỏ server repository fetch trên return navigation; dùng một API query có
   dedupe với idle warmup.
 - [x] Add idle warmup overview/catalog page 1 và intent prefetch detail.
-- [ ] Browser trace `Dashboard -> Catalog -> Dashboard` không gọi overview lại
+- [x] Browser trace `Dashboard -> Catalog -> Dashboard` không gọi overview lại
   trong staleTime.
 - [x] Catalog mutation làm overview stale/refetch đúng.
 
@@ -295,7 +297,10 @@ npm run build
 npm run perf:browser
 ```
 
-`perf:browser` ghi thêm `pages.dashboardReturn`: đây là client-side transition thật
-giữa Catalog và Dashboard, không phải hai `page.goto` độc lập. `overviewRefetched`
-phải là `false` khi quay lại trong `staleTime`; nếu là `true`, kiểm tra query key,
-provider remount hoặc request đã quá stale trước khi kết luận cache lỗi.
+`perf:browser` ghi `returnNavigation.controlFullReload` và
+`returnNavigation.warmClientReturn`: control dùng full reload, còn warm dùng
+client-side transition thật giữa Catalog và Dashboard. Mỗi warm sample phải có
+`overviewRequestsPerSample = 0`, không có dashboard RSC request lúc click, vẫn
+thấy cached metric và nhanh hơn median control. Phần `mutation` phải giữ cached
+count trong refetch, tăng đúng một SKU bằng một overview GET và archive fixture
+sau đo.

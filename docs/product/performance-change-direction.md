@@ -71,21 +71,20 @@ lập nếu repository workflow có commit/PR.
 | PERF-2.1 | [~] | Catalog exact search + bỏ count hot path | PERF-1.2 | Store list now uses `take + 1`/optional total; controlled p95 rerun still pending |
 | PERF-2.2 | [~] | Free-text query plan + index migration nếu cần | PERF-2.1 | Exact equality + fixture EXPLAIN đã có; index revisit chỉ còn khi dataset lớn hơn |
 | PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | One aggregate + recent-products query implemented; controlled p95 gate pending |
-| PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Key factory/cache reset đã có; controlled refetch trace còn pending |
+| PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Add/archive trace và concurrent invalidation đạt; update-SKU flow chưa thuộc MVP nên scope cuối chưa đóng |
 | PERF-3.2 | [x] | Provider/client boundary + route bundle gate | PERF-3.1 | Provider, bundle report và Chromium/Firefox Web Vitals CI evidence đã có; WebKit vẫn là release follow-up |
 | PERF-3.3 | [x] | Cache consistency foundation | PERF-3.1 implementation | Tenant namespace + focus/reconnect + mutation map có tests; 49 tests/typecheck/lint/build pass |
-| PERF-3.4 | [~] | Cached dashboard + progressive warmup | PERF-3.3 | Dashboard query, polling và idle warmup đã có; return-navigation browser trace còn pending |
-| PERF-4.1 | [!] | Same-region deploy/pool/load verification | PERF-2.2, PERF-2.3 | Disposable local same-region gate pass; production runtime/database region mismatch vẫn là exception |
-| PERF-L.1 | [~] | Legacy cleanup contract | PERF-4.1 | Auth/migration policy, CI chain và browser matrix đã có; Chromium/Firefox pass, WebKit được defer khỏi MVP |
+| PERF-3.4 | [x] | Cached dashboard + progressive warmup | PERF-3.3 | Chromium/Firefox control-vs-warm trace đạt; cached return có 0 overview/RSC request và mutation hội tụ bằng một refetch |
+| PERF-4.1 | [!] | Same-region deploy/pool/load verification | PERF-2.2, PERF-2.3 | Topology đã cấu hình `icn1`/`ap-northeast-2`; deployed load/provider telemetry chưa có nên vẫn là exception |
+| PERF-L.1 | [x] | Legacy cleanup contract | PERF-4.1 | Auth/migration policy, empty-chain CI và Chromium/Firefox MVP matrix đạt; WebKit là public-release follow-up riêng |
 
 ### Task đang được phép bắt đầu
 
-**PERF-3.4 Cached dashboard + progressive warmup** là task local tiếp theo. PERF-3.3
-đã hoàn tất tenant namespace, refresh policy và mutation mapping; PERF-3.4 đã có
-runtime nền tảng nhưng cần browser trace return-navigation và request count để
-đóng. Các controlled rerun còn lại của
-PERF-0/1/2 và production-region gate vẫn giữ trạng thái partial/exception, không
-được tự nâng thành complete bằng số đo khác profile.
+Không còn task `[ ]` nào có thể bắt đầu chỉ bằng môi trường local. PERF-3.4 đã
+đóng bằng control-vs-warm trace trên Chromium/Firefox. Các controlled rerun còn
+lại của PERF-0/1/2, deployed same-region gate và provider telemetry vẫn giữ trạng
+thái partial/exception; không được tự nâng thành complete bằng số đo khác profile.
+WebKit/Safari là follow-up trước public release theo quyết định MVP hiện tại.
 
 ---
 
@@ -504,10 +503,20 @@ the TanStack Query boundary needed by catalog interactions and hydration.
 - [x] Giữ first visit loading/error/retry và không tạo double fetch.
 - [x] Idle-warm overview/catalog hot set có save-data/visibility/concurrency guard.
 - [x] Poll overview tối đa mỗi 60 giây khi visible; focus/reconnect refetch khi stale.
-- [ ] Browser trace chứng minh Dashboard -> Catalog -> Dashboard dùng cache trong
+- [x] Browser trace chứng minh Dashboard -> Catalog -> Dashboard dùng cache trong
   staleTime và mutation vẫn làm overview hội tụ.
 - [x] Không triển khai SSE/outbox trong task này; chỉ ghi evidence nếu polling
   không đủ requirement.
+
+Implementation/evidence note: dashboard home now consumes the workspace already
+authorized by the persistent dashboard layout instead of issuing another trusted
+context read on each return. Only the Dashboard link opts into full dynamic-route
+prefetch; Catalog remains bounded by the existing data warmup. Five warm returns
+per browser produced zero overview requests and zero dashboard RSC requests on
+click. Chromium control/warm p50 was `161.7/46.1ms`; Firefox was
+`168.6/85.0ms`. The mutation trace kept cached count `1` visible during a delayed
+refetch, converged to `2` with one overview GET, then archived the test SKU.
+Evidence: `docs/performance/perf-3.4-local.md` and linked JSON reports.
 
 ### Server/client boundary
 
@@ -542,8 +551,9 @@ the TanStack Query boundary needed by catalog interactions and hydration.
 
 ### PERF-4.1 — Gate gần production
 
-- [x] Runtime/database region được ghi trong report; hiện chưa cùng region và được
-  ghi thành exception.
+- [x] Runtime/database region được ghi trong report. Deployment hiện cấu hình
+  Vercel `icn1` và Supabase `ap-northeast-2`; cấu hình cùng vùng không thay thế
+  deployed latency/pool/provider evidence nên gate vẫn là exception.
 - [x] Xác nhận runtime pooler/direct migration URL bằng configuration test an toàn
   (`npm run perf:config`).
 - [x] Chạy concurrency 1/5/20 với fixture chuẩn và thời lượng đủ ổn định.
@@ -631,7 +641,8 @@ by accident.
   (2 bản stable gần nhất). Thiết bị màn hình nhỏ và camera barcode phải được
   kiểm tra trên Chrome Android và Safari iOS.
 - MVP gate: Chromium và Firefox đã chạy thành công với browser trace/Web Vitals;
-  `.github/workflows/quality.yml` chạy lại hai engine trên mỗi push/PR.
+  `.github/workflows/quality.yml` chạy lại hai engine trên nhánh `production`
+  hoặc workflow dispatch thủ công, không chạy job nặng trên mọi push/PR.
   không thêm polyfill hàng loạt khi chưa có requirement.
 - WebKit/Safari được defer khỏi MVP vì host hiện thiếu native dependencies; trước
   public release phải chạy lại bằng CI/container có WebKit dependencies đầy đủ.
@@ -657,6 +668,9 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 - Benchmark + synthetic fixture có guard, cleanup và report JSON không chứa secret.
 - Same-region disposable local gate đạt SLO trên fixture 1.000/5.000/5.000;
   Chromium và Firefox browser traces đạt MVP gate.
+- Dashboard return-navigation control-vs-warm trace đạt trên Chromium/Firefox;
+  cache giữ nội dung, không tạo overview/RSC request trong staleTime và mutation
+  hội tụ trong đúng một overview refetch.
 - Migration chain từ database rỗng chạy được trong CI; legacy import vẫn staged,
   không có runtime Supabase Auth import.
 
@@ -669,8 +683,8 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 
 ### Cần external environment trước khi đóng hoàn toàn
 
-- Production runtime/database cùng region, provider CPU/connection/wait/slow-query
-  telemetry và before/after query-count baseline.
+- Controlled load trên deployed topology cùng region, provider
+  CPU/connection/wait/slow-query telemetry và before/after query-count baseline.
 - Các gate này không được suy luận từ local Docker hoặc remote-pooler sample; cần
   staging/provider access và owner project maintainer trước E2 inventory.
 

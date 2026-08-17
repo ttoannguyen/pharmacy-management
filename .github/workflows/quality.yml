@@ -67,6 +67,12 @@ jobs:
       AUTH_PEPPER: ci-only-test-pepper-not-for-production
       PERF_ENVIRONMENT: local
       PERF_BASE_URL: http://localhost:3000
+      PERF_BUILD: production
+      PERF_STAGE: ci-current
+      PERF_DATASET: deterministic demo seed
+      PERF_RUNTIME_REGION: github-actions-local
+      PERF_DATABASE_REGION: github-actions-local-postgresql-16
+      PERF_NAV_SAMPLES: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -90,10 +96,10 @@ jobs:
           cat /tmp/pharmacy-next.log
           exit 1
       - name: Capture Chromium evidence
-        run: PERF_BROWSER=chromium PERF_OUTPUT=docs/performance/perf-3.2-browser-ci-chromium.json npm run perf:browser
+        run: PERF_BROWSER=chromium PERF_OUTPUT=docs/performance/perf-browser-ci-chromium.json npm run perf:browser
       - name: Capture Firefox evidence
-        run: PERF_BROWSER=firefox PERF_OUTPUT=docs/performance/perf-3.2-browser-ci-firefox.json npm run perf:browser
+        run: PERF_BROWSER=firefox PERF_OUTPUT=docs/performance/perf-browser-ci-firefox.json npm run perf:browser
       - uses: actions/upload-artifact@v4
         with:
           name: performance-browser-evidence
-          path: docs/performance/perf-3.2-browser-ci-*.json
+          path: docs/performance/perf-browser-ci-*.json

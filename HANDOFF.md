@@ -679,3 +679,36 @@ This file is append-only and records meaningful project changes for continuity.
   revision.
 - Preserve: never equate platform administration with implicit cross-tenant
   access; future support access needs store scope, reason, expiry and audit.
+
+## 2026-08-17 — PERF-3.4 cached dashboard browser gate
+
+- Status: PERF-3.4 and cache increment C2 are complete for the local MVP gate.
+  The canonical performance plan now has no remaining local `[ ]` task; older
+  PERF-0/1/2 controlled baselines and PERF-4 production-region evidence remain
+  partial/external and were not relabeled as passes.
+- Decisions: dashboard home consumes the minimal workspace summary already
+  authorized by the persistent dashboard layout instead of reading identity on
+  every return. Only the small Dashboard route uses full dynamic-route prefetch;
+  Catalog remains on bounded data warmup to avoid duplicate server reads.
+- Browser runner: `perf:browser` now compares five full reload controls with five
+  real client returns, records raw p50/p90/p95/max and request counts, verifies
+  unauthenticated direct-entry redirect, delays mutation convergence, fails on
+  unmet criteria and archives its synthetic SKU even on the failure path.
+- Evidence: `docs/performance/perf-3.4-local.md` plus before/after JSON. Chromium
+  control/warm p50/p95 was `161.7/181.2ms` vs `46.1/48.4ms`; Firefox was
+  `168.6/252.2ms` vs `85.0/108.6ms`. All warm samples made zero overview and zero
+  dashboard RSC requests on click. SKU count stayed visible at `1`, converged to
+  `2` with one overview GET, and cleanup returned HTTP 200.
+- Verification: ten browser criteria passed in each engine on a production build
+  and disposable PostgreSQL 16; all five migrations and deterministic seed ran;
+  53 tests, typecheck, lint, build, script syntax, JSON evidence audit and diff
+  check passed. Test application/database/browser containers were removed.
+- CI/docs: production/manual browser evidence now uses the combined PERF-3.2/3.4
+  runner and generic artifact names. Architecture, cache contract and canonical
+  performance checklist were updated in the same change.
+- Remaining: controlled load/provider evidence on the configured same-region
+  deployed topology, plus WebKit/Safari before public release. Do not infer those
+  passes from local container results.
+- Preserve: direct entry must remain guarded by the server layout; workspace
+  context is display/cache input only, never API authorization proof. Do not
+  full-prefetch data-heavy operational routes or weaken post-commit invalidation.

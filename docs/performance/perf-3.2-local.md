@@ -39,6 +39,7 @@ To reproduce on a machine with Playwright browser dependencies:
 ```bash
 npx playwright install chromium
 PERF_ENVIRONMENT=local PERF_BASE_URL=http://127.0.0.1:3000 \
+  PERF_OUTPUT=docs/performance/perf-browser-local.json \
   npm run perf:browser
 ```
 

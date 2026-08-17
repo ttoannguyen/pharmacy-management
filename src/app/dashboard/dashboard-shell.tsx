@@ -51,7 +51,7 @@ export function DashboardShell({ children, user, activeStore }: { children: Reac
         <nav className="sidebar-nav" aria-label="Điều hướng chính">
           <p className="sidebar-label">VẬN HÀNH</p>
           {navigation.map((item) => item.available ? (
-            <Link className={`sidebar-link ${pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href)) ? "is-active" : ""}`} href={item.href} key={item.href}><span className="sidebar-icon"><item.icon size={17} strokeWidth={1.8} /></span><span>{item.label}</span></Link>
+            <Link className={`sidebar-link ${pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href)) ? "is-active" : ""}`} href={item.href} key={item.href} prefetch={item.href === "/dashboard"}><span className="sidebar-icon"><item.icon size={17} strokeWidth={1.8} /></span><span>{item.label}</span></Link>
           ) : (
             <span aria-disabled="true" className="sidebar-link is-disabled" key={item.href} title={`${item.label} đang được xây dựng`}><span className="sidebar-icon"><item.icon size={17} strokeWidth={1.8} /></span><span>{item.label}</span><small>Sắp có</small></span>
           ))}

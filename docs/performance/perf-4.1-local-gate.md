@@ -56,3 +56,11 @@ No schema or migration change is required for this exception report.
 The reusable collector is `npm run perf:db-telemetry`. It refuses non-local
 targets unless explicitly approved, omits query text/parameters, and reports the
 provider limitation that PostgreSQL statistics do not expose host CPU usage.
+
+## Topology update — 2026-08-17
+
+Production deployment is now configured for Vercel `icn1` and Supabase
+`ap-northeast-2`, so the topology is intended to be same-region. This does not
+retroactively convert the local-runtime/remote-pooler measurements above into a
+deployed pass. PERF-4.1 remains an exception until the current production/staging
+revision is measured with the controlled 1/5/20 profile and provider telemetry.

@@ -1,0 +1,123 @@
+{
+  "generatedAt": "2026-08-17T15:34:18.068Z",
+  "stage": "before-dashboard-workspace-and-full-prefetch",
+  "environment": "local-disposable",
+  "build": "production",
+  "commit": "working-tree@63f5fb9",
+  "dataset": "deterministic demo seed (1 product, 1 active SKU)",
+  "runtimeRegion": "local-node-22",
+  "databaseRegion": "local-postgresql-16",
+  "baseUrl": "http://127.0.0.1:4100",
+  "browser": "chromium",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": {
+    "dashboard": {
+      "navigationMs": 248.9,
+      "domContentLoadedMs": 202.8,
+      "loadMs": 248.9,
+      "lcpMs": 212,
+      "cls": 0,
+      "inpMs": 48
+    },
+    "catalog": {
+      "navigationMs": 185.3,
+      "domContentLoadedMs": 97.1,
+      "loadMs": 185.3,
+      "lcpMs": 228,
+      "cls": 0,
+      "inpMs": null
+    }
+  },
+  "returnNavigation": {
+    "controlFullReload": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 185.9,
+        "p90Ms": 263,
+        "p95Ms": 263,
+        "maxMs": 263
+      },
+      "overviewRequestsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "totalOverviewRequests": 5
+    },
+    "warmClientReturn": {
+      "durations": {
+        "n": 5,
+        "p50Ms": 392.4,
+        "p90Ms": 403.3,
+        "p95Ms": 403.3,
+        "maxMs": 403.3
+      },
+      "overviewRequestsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "totalOverviewRequests": 0,
+      "maxCacheAgeMs": 4543.1,
+      "withinStaleTime": true,
+      "cachedValueVisibleOnEveryReturn": true
+    }
+  },
+  "mutation": {
+    "route": "/dashboard/catalog/[id]",
+    "productId": "80000000-0000-4000-8000-000000000001",
+    "skuCountBefore": 1,
+    "skuCountAfter": 2,
+    "cachedValueDuringRefetch": "1",
+    "skeletonVisibleDuringRefetch": false,
+    "overviewRequestDelta": 1,
+    "returnAndConvergeMs": 1907.3,
+    "postMutationRequests": [
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001/skus",
+        "method": "POST",
+        "status": 201,
+        "failed": false
+      },
+      {
+        "path": "/api/catalog/products/80000000-0000-4000-8000-000000000001",
+        "method": "GET",
+        "status": 200,
+        "failed": false
+      },
+      {
+        "path": "/dashboard?_rsc=qwZSis7tfBKsCXAr",
+        "method": "GET",
+        "status": 200,
+        "failed": true
+      },
+      {
+        "path": "/api/catalog/overview",
+        "method": "GET",
+        "status": 200,
+        "failed": false
+      }
+    ],
+    "cleanup": {
+      "attempted": true,
+      "archived": true,
+      "status": 200
+    }
+  },
+  "criteria": {
+    "controlLoadsFetchOverviewExactlyOnce": true,
+    "warmReturnsStayWithinStaleTime": true,
+    "warmReturnsUseCachedOverview": true,
+    "mutationKeepsCachedValueDuringRefetch": true,
+    "mutationConvergesInOneOverviewRequest": true,
+    "mutationCleanupArchivedSku": true,
+    "noFailedApiRequests": true
+  }
+}
