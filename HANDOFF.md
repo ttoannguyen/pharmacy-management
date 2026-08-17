@@ -749,3 +749,34 @@ This file is append-only and records meaningful project changes for continuity.
   round-trip; keep auth SQL parameterized and tenant authorization server-side.
   Query evidence must never persist query text, tokens, parameters or production
   payloads.
+
+## 2026-08-17 — PERF-2.2 current-source EXPLAIN gate
+
+- Status: PERF-2.2 is complete. Its previous “revisit at larger scale” note is
+  now an explicit future reopen trigger, not an unmet current acceptance gate.
+- Environment/dataset: disposable PostgreSQL 16, all five migrations from empty,
+  deterministic demo seed and exact synthetic fixture of 1,000 products, 5,000
+  SKUs and 5,000 barcodes. Cleanup was verified at `0/0/0` before container
+  removal.
+- Evidence: `docs/performance/perf-2.2-explain-local.json`. Exact SKU uses
+  `store_skus_store_id_code_key` at 0.046ms; exact barcode uses
+  `store_barcodes_store_id_barcode_key` at 0.042ms; free-text display-name
+  filtering executes in 0.893ms, below the 10ms current-fixture budget.
+- Tooling: `perf:explain` now records expected/actual fixture scale, commit,
+  local database port, four executable criteria and the index decision. It exits
+  non-zero on scale/index/free-text regressions. Plan traversal and failure
+  behavior have unit tests.
+- Decision: no `pg_trgm` or index migration now. Reopen at a versioned
+  100,000-product fixture or when warm free-text API p95 exceeds budget; then
+  record storage/write cost and use an additive migration with rollback notes.
+- Verification: 59 tests in 17 files, typecheck, lint, Prisma validate,
+  production build, JSON criteria/secret audit and diff check passed. No schema
+  or migration changed.
+- Changed files: EXPLAIN runner/utility/tests, latest local evidence, canonical
+  performance plan, PERF-2.2/PERF-4 reports, Vitest include and this handoff.
+- Remaining: PERF-2.1/PERF-2.3 historical implementations are absent from every
+  local/origin ref, so their exact historical baselines must not be fabricated.
+  PERF-4.1 still needs deployed/provider telemetry.
+- Preserve: exact SKU/barcode predicates stay tenant-scoped and use normalized
+  equality. Do not add trigram infrastructure until a reopen trigger and measured
+  write/storage trade-off justify it.

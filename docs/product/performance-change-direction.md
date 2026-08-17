@@ -69,7 +69,7 @@ lập nếu repository workflow có commit/PR.
 | PERF-1.1 | [x] | Single-query trusted request context | PERF-0.2 | One parameterized SQL statement verified by same-profile pg_stat_statements before/after |
 | PERF-1.2 | [x] | Session touch ngoài critical path + migrate callers | PERF-1.1 | Deferred touch, caller cleanup, security tests and controlled query-count/p95 evidence complete |
 | PERF-2.1 | [~] | Catalog exact search + bỏ count hot path | PERF-1.2 | Current SQL contract proves optional total adds one call; historical pre-change profile is unavailable |
-| PERF-2.2 | [~] | Free-text query plan + index migration nếu cần | PERF-2.1 | Exact equality + fixture EXPLAIN đã có; index revisit chỉ còn khi dataset lớn hơn |
+| PERF-2.2 | [x] | Free-text query plan + index migration nếu cần | PERF-2.1 | Current-source 1k/5k/5k EXPLAIN contract passes; no pg_trgm now, explicit future reopen trigger recorded |
 | PERF-2.3 | [~] | Dashboard conditional aggregates | PERF-1.2 | Current budget is 2 business/3 total SQL calls; historical pre-aggregate profile is unavailable |
 | PERF-3.1 | [~] | TanStack invalidation/query-key cleanup | PERF-2.1 | Add/archive trace và concurrent invalidation đạt; update-SKU flow chưa thuộc MVP nên scope cuối chưa đóng |
 | PERF-3.2 | [x] | Provider/client boundary + route bundle gate | PERF-3.1 | Provider, bundle report và Chromium/Firefox Web Vitals CI evidence đã có; WebKit vẫn là release follow-up |
@@ -82,9 +82,10 @@ lập nếu repository workflow có commit/PR.
 
 Không còn task `[ ]` nào có thể bắt đầu chỉ bằng môi trường local. PERF-1.1/1.2
 đã đóng bằng cùng profile PostgreSQL `pg_stat_statements`; PERF-3.4 đã đóng bằng
-control-vs-warm trace trên Chromium/Firefox. Historical baseline còn thiếu của
-PERF-0/2, deployed same-region gate và provider telemetry vẫn giữ trạng thái
-partial/exception; không được tự nâng thành complete bằng số đo khác profile.
+control-vs-warm trace trên Chromium/Firefox; PERF-2.2 đã đóng bằng current-source
+EXPLAIN trên fixture disposable 1.000/5.000/5.000. Historical baseline còn thiếu
+của PERF-0/2.1/2.3, deployed same-region gate và provider telemetry vẫn giữ trạng
+thái partial/exception; không được tự nâng thành complete bằng số đo khác profile.
 WebKit/Safari là follow-up trước public release theo quyết định MVP hiện tại.
 
 ---
@@ -414,6 +415,13 @@ numeric barcode input uses equality on normalized barcode. Name/brand/registrati
 queries retain free-text behavior. No pg_trgm migration is created until a
 fixture-only EXPLAIN and provider capability decision exist.
 
+Current-source evidence: `docs/performance/perf-2.2-explain-local.json` records
+the exact 1.000/5.000/5.000 disposable fixture. Exact SKU/barcode use the tenant
+composite indexes at `0.046/0.042 ms`; free-text executes in `0.893 ms`, below
+the explicit 10 ms current-fixture budget. Reopen the index decision at a
+versioned 100.000-product fixture or when warm free-text API p95 exceeds budget.
+That future trigger does not keep the present task partial.
+
 ### PERF-2.3 — Dashboard aggregate
 
 - [x] Gộp product/SKU/price/barcode counts thành conditional aggregate.
@@ -677,6 +685,9 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 - Trusted context đã được kiểm chứng ở tầng PostgreSQL statement, không chỉ bằng
   repository mock: auth `2 -> 1`, catalog list `9 -> 6`, detail `11 -> 8`,
   overview `6 -> 3` trên cùng disposable profile.
+- Catalog exact/free-text planning contract đạt trên fixture disposable
+  1.000/5.000/5.000; exact paths giữ composite indexes và pg_trgm được defer bằng
+  explicit reopen trigger thay vì migration theo suy đoán.
 - Benchmark + synthetic fixture có guard, cleanup và report JSON không chứa secret.
 - Same-region disposable local gate đạt SLO trên fixture 1.000/5.000/5.000;
   Chromium và Firefox browser traces đạt MVP gate.

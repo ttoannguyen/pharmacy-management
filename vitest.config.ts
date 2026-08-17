@@ -10,7 +10,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "scripts/performance/**/*.test.mjs"],
+    include: ["src/**/*.test.ts", "scripts/performance/**/*.test.ts", "scripts/performance/**/*.test.mjs"],
     coverage: {
       reporter: ["text", "html"],
     },

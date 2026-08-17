@@ -20,6 +20,8 @@ Status: exception (`[!]`)
 - [perf-0.2-fixture.json](./perf-0.2-fixture.json): baseline instrumentation run.
 - [perf-1.1-after.json](./perf-1.1-after.json): trusted-context/session-touch run.
 - [perf-2.2-explain.json](./perf-2.2-explain.json): exact/free-text query plans.
+- [perf-2.2-explain-local.json](./perf-2.2-explain-local.json): current-source,
+  guarded disposable 1,000/5,000/5,000 plan contract.
 - [perf-4.1-overview.json](./perf-4.1-overview.json): read-only catalog overview
   API profile using the same production build and concurrency matrix.
 - [perf-4.1-same-region-local.md](./perf-4.1-same-region-local.md): controlled
