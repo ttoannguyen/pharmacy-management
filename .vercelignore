@@ -1,0 +1,7 @@
+.env
+.env.*
+.vercel
+image.png
+*.log
+playwright-report
+test-results

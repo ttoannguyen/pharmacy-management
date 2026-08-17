@@ -84,6 +84,21 @@ async function main() {
   await page.goto(`${baseUrl}/dashboard/catalog`, { waitUntil: "networkidle" });
   const catalog = await readVitals(page);
 
+  // Exercise the real client-side route transition. A full page.goto would
+  // remount QueryClientProvider and could not prove return-navigation caching.
+  const overviewRequestsBeforeReturn = requests.filter((request) => request.path === "/api/catalog/overview").length;
+  await Promise.all([
+    page.waitForURL("**/dashboard"),
+    page.getByRole("link", { name: "Tổng quan" }).click(),
+  ]);
+  await page.waitForLoadState("networkidle");
+  const overviewRequestsAfterReturn = requests.filter((request) => request.path === "/api/catalog/overview").length;
+  const dashboardReturn = {
+    overviewRequestsBefore: overviewRequestsBeforeReturn,
+    overviewRequestsAfter: overviewRequestsAfterReturn,
+    overviewRefetched: overviewRequestsAfterReturn > overviewRequestsBeforeReturn,
+  };
+
   const catalogRequestsBeforeMutation = requests.filter((request) => request.path.startsWith("/api/catalog/")).length;
   await page.goto(`${baseUrl}/dashboard/catalog/80000000-0000-4000-8000-000000000001`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /Thêm SKU/ }).click();
@@ -115,7 +130,7 @@ async function main() {
     baseUrl: new URL(baseUrl).origin,
     browser: browserName,
     viewport: { width: 1440, height: 900 },
-    pages: { dashboard, catalog },
+    pages: { dashboard, catalog, dashboardReturn },
     mutation: {
       route: "/dashboard/catalog/[id]",
       requestCountBefore: catalogRequestsBeforeMutation,

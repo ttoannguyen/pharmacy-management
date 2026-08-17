@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { catalogQueryKeys, createCatalogQueryKeys, invalidateCatalogAfterSkuMutation, resetTenantCatalogCache, storeProductDetailQueryKey, storeProductsQueryKey } from "./catalog-query";
+import { catalogOverviewQueryOptions, catalogQueryKeys, createCatalogQueryKeys, invalidateCatalogAfterSkuMutation, resetTenantCatalogCache, storeProductDetailQueryKey, storeProductsQueryKey } from "./catalog-query";
 
 describe("catalog query keys", () => {
   it("keeps list/detail/overview keys under one tenant-sensitive namespace", () => {
@@ -10,9 +10,11 @@ describe("catalog query keys", () => {
     expect(createCatalogQueryKeys("store-a").overview()).not.toEqual(createCatalogQueryKeys("store-b").overview());
   });
 
-  it("clears the whole tenant-sensitive namespace on store switch", () => {
+  it("cancels and clears the whole tenant-sensitive namespace on store switch", async () => {
     const removeQueries = vi.fn();
-    resetTenantCatalogCache({ removeQueries });
+    const cancelQueries = vi.fn(() => Promise.resolve());
+    await resetTenantCatalogCache({ removeQueries, cancelQueries });
+    expect(cancelQueries).toHaveBeenCalledWith({ queryKey: ["store"] });
     expect(removeQueries).toHaveBeenCalledWith({ queryKey: ["store"] });
   });
 
@@ -29,5 +31,16 @@ describe("catalog query keys", () => {
     ]);
     resolvers.forEach((resolve) => resolve());
     await pending;
+  });
+
+  it("keeps overview polling visible-only and refreshable after staleness", () => {
+    const options = catalogOverviewQueryOptions("store-a");
+    expect(options.queryKey).toEqual(["store", "store-a", "catalog", "overview"]);
+    expect(options.staleTime).toBe(30_000);
+    expect(options.gcTime).toBe(10 * 60_000);
+    expect(options.refetchInterval).toBe(60_000);
+    expect(options.refetchIntervalInBackground).toBe(false);
+    expect(options.refetchOnWindowFocus).toBe(true);
+    expect(options.refetchOnReconnect).toBe(true);
   });
 });

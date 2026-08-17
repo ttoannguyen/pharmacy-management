@@ -58,10 +58,15 @@ export function createCatalogQueryKeys(scope = DEFAULT_STORE_SCOPE) {
 
 export const catalogQueryKeys = createCatalogQueryKeys();
 
-export function resetTenantCatalogCache(queryClient: { removeQueries: (filters: { queryKey: readonly unknown[] }) => unknown }) {
+export async function resetTenantCatalogCache(queryClient: {
+  cancelQueries?: (filters: { queryKey: readonly unknown[] }) => Promise<unknown>;
+  removeQueries: (filters: { queryKey: readonly unknown[] }) => unknown;
+}) {
   // The active store is also part of every key. Removing the common root avoids
   // stale data flashing when a user switches store before the hard reload.
-  queryClient.removeQueries({ queryKey: ["store"] });
+  const queryKey = ["store"] as const;
+  if (queryClient.cancelQueries) await queryClient.cancelQueries({ queryKey });
+  queryClient.removeQueries({ queryKey });
 }
 
 export function invalidateCatalogAfterSkuMutation(

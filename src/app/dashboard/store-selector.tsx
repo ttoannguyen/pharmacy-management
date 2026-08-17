@@ -28,7 +28,7 @@ export function StoreSelector({ stores }: { stores: StoreOption[] }) {
       setIsSaving(false);
       return;
     }
-    resetTenantCatalogCache(queryClient);
+    await resetTenantCatalogCache(queryClient);
     window.location.reload();
   }
 

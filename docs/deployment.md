@@ -43,6 +43,9 @@ Release/migration secret:
 Never expose database URLs or `AUTH_PEPPER` through `NEXT_PUBLIC_*`, logs, build
 artifacts or client code.
 
+`.vercelignore` excludes all local `.env*` files from deployment uploads. Vercel
+must inject production values from its encrypted environment settings instead.
+
 ## Release order
 
 1. Run tests, typecheck, lint, production build and empty migration-chain check
