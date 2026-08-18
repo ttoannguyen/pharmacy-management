@@ -867,3 +867,16 @@ This file is append-only and records meaningful project changes for continuity.
   project, set its canonical `NEXT_PUBLIC_APP_URL`, then rerun health/login/store/
   catalog smoke tests. Code/database deployment succeeded, but public readiness
   remains blocked on this Vercel domain/protection setting.
+
+## 2026-08-18 — Active deployment version identity implemented
+
+- Contract: `/api/health` now returns `activeVersion`, full/short commit SHA,
+  branch, environment and provider with `no-store`, `x-app-version` and
+  `x-release-commit` headers. Values are allowlist-validated before exposure.
+- UI: home, store dashboard and system-admin screens link to the health endpoint
+  and display `v<package-version>+<sha7>` for the running release.
+- Source: Vercel system Git metadata is authoritative; local/test builds fall
+  back deterministically to `0.1.0+local` instead of claiming an unknown SHA.
+- Verification: dedicated release metadata tests, typecheck and lint pass at
+  implementation time; full test/build and deployed exact-SHA verification are
+  required before this release is considered active.

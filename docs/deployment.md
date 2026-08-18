@@ -80,3 +80,29 @@ and new application revisions can overlap safely during rollout.
 - Keep database migrations append-only after they reach a shared environment.
 - Roll back application code by deploying the previous immutable revision; use a
   forward corrective migration instead of editing an applied migration.
+
+## Active release identification
+
+Every deployment exposes a safe release identity at `GET /api/health` and in the
+home, dashboard and system-admin UI. The active version format is
+`<package-version>+<git-sha-7>`, for example `0.1.0+f153237`.
+
+- Vercel production uses `VERCEL_GIT_COMMIT_SHA`, `VERCEL_GIT_COMMIT_REF` and
+  `VERCEL_ENV`; these values contain deployment metadata, never credentials.
+- Enable **Automatically expose System Environment Variables** in the Vercel
+  project. Without it, the endpoint intentionally reports `0.1.0+local` rather
+  than guessing a revision.
+- `/api/health` is `no-store` and returns the same identity in
+  `x-app-version`/`x-release-commit`, so monitors can detect a stale alias or an
+  unexpected rollback.
+- Never derive active version from the browser bundle, branch name alone or the
+  latest Git commit; the running deployment's SHA is authoritative.
+
+Verification:
+
+```bash
+curl --fail --silent https://<production-domain>/api/health
+```
+
+Confirm that `release.commitSha` exactly matches `origin/production`, not merely
+that the endpoint returns HTTP 200.

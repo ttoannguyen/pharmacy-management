@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { SystemRole } from "@/generated/prisma/client";
+import { getReleaseInfo } from "@/lib/release-info";
 import { UnauthorizedError } from "@/modules/identity/application/auth-errors";
 import { getCurrentWorkspaceState } from "@/modules/identity/infrastructure/current-store-context";
 
@@ -41,5 +42,5 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
     },
   }));
 
-  return <AppProviders workspace={{ activeStore, memberships }}><DashboardShell user={workspace.actor} activeStore={activeStore}>{children}</DashboardShell></AppProviders>;
+  return <AppProviders workspace={{ activeStore, memberships }}><DashboardShell user={workspace.actor} activeStore={activeStore} release={getReleaseInfo()}>{children}</DashboardShell></AppProviders>;
 }

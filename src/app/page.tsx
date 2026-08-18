@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SystemRole } from "@/generated/prisma/client";
+import { getReleaseInfo } from "@/lib/release-info";
 import { getCurrentActor } from "@/modules/identity/infrastructure/current-store-context";
 
 const modules = [
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const currentUser = await getCurrentActor();
+  const release = getReleaseInfo();
   const workspaceHref = currentUser?.systemRole === SystemRole.SYSTEM_ADMIN ? "/admin" : "/dashboard";
 
   return (
@@ -58,6 +60,7 @@ export default async function HomePage() {
         {currentUser ? "Mở không gian làm việc" : "Đăng nhập hệ thống"}
       </Link>
       {currentUser ? <p className="mt-3 text-sm text-[var(--muted)]">Xin chào {currentUser.displayName}.</p> : null}
+      <a className="mt-8 block w-fit text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)]" href="/api/health" title={`Nhánh ${release.branch}`}>Active v{release.activeVersion}</a>
     </main>
   );
 }

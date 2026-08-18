@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { BarChart3, ClipboardList, LayoutDashboard, LogOut, Package, Pill, Settings, ShoppingCart, Warehouse } from "lucide-react";
 
+import type { ReleaseInfo } from "@/lib/release-info";
+
 import { DashboardWarmup } from "./dashboard-warmup";
 
 type User = { displayName: string | null; email: string; systemRole: string };
@@ -26,7 +28,7 @@ const roleLabels: Record<string, string> = {
   ACCOUNTANT: "Kế toán",
 };
 
-export function DashboardShell({ children, user, activeStore }: { children: React.ReactNode; user: User; activeStore: ActiveStore }) {
+export function DashboardShell({ children, user, activeStore, release }: { children: React.ReactNode; user: User; activeStore: ActiveStore; release: ReleaseInfo }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -62,6 +64,7 @@ export function DashboardShell({ children, user, activeStore }: { children: Reac
           <span aria-disabled="true" className="sidebar-link is-disabled"><span className="sidebar-icon"><Settings size={17} strokeWidth={1.8} /></span><span>Cài đặt</span><small>Sắp có</small></span>
         </nav>
         <div className="sidebar-bottom">
+          <a className="release-badge" href="/api/health" rel="noreferrer" target="_blank" title={`Active release ${release.activeVersion} · ${release.branch}`}><span />v{release.activeVersion}</a>
           <div className="user-card"><span className="avatar">{initial}</span><span className="user-meta"><strong>{user.displayName ?? roleLabels[activeStore?.role ?? ""] ?? "Người dùng"}</strong><small>{user.email}</small></span><button aria-label="Đăng xuất" disabled={loggingOut} onClick={logout} title="Đăng xuất"><LogOut size={16} /></button></div>
         </div>
       </aside>

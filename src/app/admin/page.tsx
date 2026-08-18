@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { getReleaseInfo } from "@/lib/release-info";
 import { ForbiddenError, UnauthorizedError } from "@/modules/identity/application/auth-errors";
 import { getSystemAdminOverview } from "@/modules/identity/application/system-admin";
 import { getCurrentWorkspaceState } from "@/modules/identity/infrastructure/current-store-context";
@@ -13,6 +14,7 @@ import { AdminLogoutButton } from "./admin-actions";
 export const dynamic = "force-dynamic";
 
 export default async function SystemAdminPage() {
+  const release = getReleaseInfo();
   let workspace;
   try {
     workspace = await getCurrentWorkspaceState();
@@ -46,7 +48,7 @@ export default async function SystemAdminPage() {
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--soft-blue)] text-[var(--primary)]"><ShieldCheck size={23} /></span>
           <div><p className="eyebrow">Quản trị toàn hệ thống</p><h1 className="mt-1 text-2xl font-bold tracking-tight">System Admin</h1><p className="mt-1 text-sm text-[var(--muted)]">{actor.displayName ?? actor.email}</p></div>
         </div>
-        <div className="flex gap-2">{workspace.memberships.length > 0 ? <Link className="button" href="/dashboard">Không gian nhà thuốc</Link> : null}<AdminLogoutButton /></div>
+        <div className="flex flex-wrap items-center gap-2"><a className="release-badge" href="/api/health" title={`Active release ${release.activeVersion} · ${release.branch}`}><span />v{release.activeVersion}</a>{workspace.memberships.length > 0 ? <Link className="button" href="/dashboard">Không gian nhà thuốc</Link> : null}<AdminLogoutButton /></div>
       </header>
 
       <section className="metric-grid mt-6" aria-label="Tổng quan toàn hệ thống">
