@@ -834,3 +834,17 @@ This file is append-only and records meaningful project changes for continuity.
 - Preserve next: E3/E5 must add document-state archive guards and snapshot exact
   conversion/cost on transaction lines; never rewrite conversion history or
   treat a store override as a shared catalog correction.
+
+## 2026-08-18 — Performance workstream reduced and production schema reconciled
+
+- Status: stopped further historical/deployed benchmarking to prioritize feature
+  delivery; accepted exceptions remain explicit in the performance plan.
+- Production database: `20260817111500_system_role_separation` applied. The first
+  conversion-history attempt lost its session and was recorded failed; schema
+  introspection proved the transaction fully rolled back, it was marked
+  rolled-back, retried, and `20260817175000_store_sku_conversion_history` then
+  applied successfully. All six committed migrations are now applied.
+- Deployment: application revision `2743870` was not promoted; `production`
+  remains on `f9dbbdf`. The additive schema remains compatible with that app.
+- Preserve: do not restart remote load/provider telemetry during E2. Reopen it
+  only before public release or for an observed SLO/error/connection regression.

@@ -80,6 +80,13 @@ lập nếu repository workflow có commit/PR.
 
 ### Task đang được phép bắt đầu
 
+Quyết định ngày 2026-08-18: **đóng performance workstream ở mức MVP hiện tại** để
+không tiếp tục tiêu tốn thời gian feature delivery. Không chạy thêm historical
+reconstruction, remote load test hoặc provider telemetry trong E2. Các mục `[~]`
+và `[!]` bên dưới là accepted exceptions, chỉ mở lại trước public release hoặc
+khi production telemetry/SLO cho thấy regression. Quyết định này không biến
+evidence còn thiếu thành `[x]` và không hạ correctness/tenant/security gates.
+
 E1.2 catalog lifecycle đã hoàn tất, gồm product update/archive và lịch sử phiên
 bản quy đổi SKU. Không còn PERF task `[ ]` nào có thể bắt đầu chỉ bằng môi trường
 local. PERF-1.1/1.2
@@ -718,6 +725,11 @@ verification. Không chấp nhận “cảm thấy nhanh hơn” hoặc chỉ d�
 
 ### Được defer có chủ đích
 
+- Historical before-profile cho PERF-0.1/2.1/2.3: commit đầu tiên đã chứa
+  implementation hiện tại nên không còn build trước thay đổi để tái tạo trung
+  thực. Giữ current contracts/tests và không dựng số liệu giả.
+- Deployed load/provider telemetry của PERF-4.1: dừng trong MVP feature phase;
+  mở lại trước public release hoặc khi p95/error/connection telemetry vượt budget.
 - WebKit/Safari: chạy trước public release bằng CI/container có native
   dependencies; không chặn MVP.
 - Inventory/POS load gates: chỉ mở sau khi ledger, receipt và checkout được
