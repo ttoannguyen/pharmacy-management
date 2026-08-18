@@ -896,3 +896,19 @@ This file is append-only and records meaningful project changes for continuity.
   can open `/api/health`; if it reports `+local`, enable automatic Vercel System
   Environment Variables and redeploy. The previously documented domain/protection
   blocker remains unchanged.
+
+## 2026-08-18 — System administrator bootstrapped and ee1131a redeployed
+
+- Identity: the explicitly configured system-admin account was upserted in the
+  production Supabase database with an Argon2id password hash, active/verified
+  state and `SYSTEM_ADMIN` role. The bootstrap wrote its required audit record;
+  no email or password value was logged or committed.
+- Release: `ee1131a7614024295294b9da8182362629c33eba` is the active production
+  revision, with expected UI/health identity `0.1.0+ee1131a`. Vercel deployment
+  `5955518634` completed successfully.
+- CI: quality run `32095436764` passed both `verify` and `browser-evidence`,
+  including empty migration-chain, tests, typecheck, lint, build, Chromium and
+  Firefox.
+- Secrets: `.env`/`.env.local` remain ignored and were not uploaded. The existing
+  Vercel SSO/domain access blocker is unchanged; signed-in access is still
+  required for the immutable deployment URL.
