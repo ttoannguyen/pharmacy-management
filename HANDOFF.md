@@ -848,3 +848,22 @@ This file is append-only and records meaningful project changes for continuity.
   remains on `f9dbbdf`. The additive schema remains compatible with that app.
 - Preserve: do not restart remote load/provider telemetry during E2. Reopen it
   only before public release or for an observed SLO/error/connection regression.
+
+## 2026-08-18 — Revision f153237 deployed to Vercel production
+
+- Release: `main` revision `f153237` was fast-forwarded to `production` after 75
+  tests, typecheck, lint, production build and migration-status checks passed.
+- Database: Supabase reports all six committed migrations applied before the app
+  promotion.
+- Evidence: Vercel deployment `5955173056` completed successfully for exact SHA
+  `f153237737b504cca5d739831ead8fdb5385a55a`; GitHub Actions quality run
+  `32093283509` completed successfully, including both release browser engines.
+- Access gap: project deployment and branch aliases return `302` to Vercel SSO,
+  so unauthenticated application smoke tests cannot run. The generic
+  `pharmacy-management.vercel.app` domain currently serves a different React app
+  named “Pharma One” and must not be advertised as this deployment.
+- Required owner action: in Vercel, disable production Deployment Protection (or
+  provide a scoped protection-bypass secret), attach a domain owned by this
+  project, set its canonical `NEXT_PUBLIC_APP_URL`, then rerun health/login/store/
+  catalog smoke tests. Code/database deployment succeeded, but public readiness
+  remains blocked on this Vercel domain/protection setting.
