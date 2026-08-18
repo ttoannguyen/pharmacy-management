@@ -880,3 +880,19 @@ This file is append-only and records meaningful project changes for continuity.
 - Verification: dedicated release metadata tests, typecheck and lint pass at
   implementation time; full test/build and deployed exact-SHA verification are
   required before this release is considered active.
+
+## 2026-08-18 — Active version release d1ac5d2 deployed
+
+- Production: exact SHA `d1ac5d22fb64ddde521a1cefe73f22469c1fe114`
+  deployed successfully as Vercel deployment `5955354068`; expected active
+  identity is `0.1.0+d1ac5d2`.
+- CI: production quality run `32094448535` completed successfully, including the
+  Chromium/Firefox browser-evidence job. Local verification passed 78 tests,
+  typecheck, lint, production build and a runtime health response/header check.
+- Runtime check: simulated Vercel metadata returned full SHA plus
+  `x-app-version: 0.1.0+abcdef1` and `x-release-commit: abcdef1` with `no-store`.
+- Remote limitation: deployment aliases remain behind Vercel SSO, so an
+  unauthenticated agent cannot read the deployed health body. A signed-in owner
+  can open `/api/health`; if it reports `+local`, enable automatic Vercel System
+  Environment Variables and redeploy. The previously documented domain/protection
+  blocker remains unchanged.
